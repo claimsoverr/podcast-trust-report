@@ -1,7 +1,14 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { stepCountIs, streamText, tool } from "ai";
+import { type LanguageModel, stepCountIs, streamText, tool } from "ai";
 import { z } from "zod";
-import { type AISettings, validateAISettings } from "@/utils/settings";
+import {
+  type AIConnection,
+  normalizeConnectionInput,
+  validateAIConnection,
+} from "@/utils/settings";
 
 const sampleTools = {
   getSampleInfo: tool({
@@ -22,6 +29,49 @@ const sampleTools = {
   }),
 };
 
+function createLanguageModel(connection: AIConnection): LanguageModel {
+  const normalized = normalizeConnectionInput(connection);
+
+  switch (normalized.provider) {
+    case "openai-compatible": {
+      const provider = createOpenAICompatible({
+        name: "user-configured-ai",
+        baseURL: normalized.apiUrl,
+        ...(normalized.apiKey ? { apiKey: normalized.apiKey } : {}),
+      });
+      return provider(normalized.modelId);
+    }
+    case "ollama": {
+      const provider = createOpenAICompatible({
+        name: "ollama",
+        baseURL: `${normalized.apiUrl}/v1`,
+      });
+      return provider(normalized.modelId);
+    }
+    case "google": {
+      const provider = createGoogleGenerativeAI({
+        apiKey: normalized.apiKey,
+      });
+      return provider(normalized.modelId);
+    }
+    case "anthropic": {
+      const provider = createAnthropic({
+        apiKey: normalized.apiKey,
+        headers: {
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+      });
+      return provider(normalized.modelId);
+    }
+    case "openai": {
+      const provider = createOpenAI({
+        apiKey: normalized.apiKey,
+      });
+      return provider(normalized.modelId);
+    }
+  }
+}
+
 function extractErrorMessage(err: unknown): string {
   if (err instanceof Error && err.message) {
     return err.message;
@@ -39,25 +89,18 @@ function extractErrorMessage(err: unknown): string {
 }
 
 export async function runSampleAgent(
-  settings: AISettings,
+  connection: AIConnection,
   onChunk: (textSoFar: string) => void,
 ): Promise<void> {
-  const validation = await validateAISettings(settings);
+  const validation = await validateAIConnection(connection);
   if (!validation.valid) {
     throw new Error(validation.error);
   }
 
-  const cleanApiKey = settings.apiKey.trim();
-  const provider = createOpenAICompatible({
-    name: "user-configured-ai",
-    baseURL: settings.apiUrl.trim().replace(/\/+$/, ""),
-    ...(cleanApiKey ? { apiKey: cleanApiKey } : {}),
-  });
-
   let streamError: unknown = null;
 
   const { textStream } = streamText({
-    model: provider(settings.modelId.trim()),
+    model: createLanguageModel(connection),
     system:
       "You are a minimal verification agent. Always call the getSampleInfo tool once, then summarize the returned fields in 2–3 concise sentences.",
     prompt: "Fetch sample info for topic 'client-side-agent' and summarize it.",

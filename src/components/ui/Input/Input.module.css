@@ -16,4 +16,33 @@
     display: flex;
     align-items: center;
   }
+
+  .revealButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    inline-size: 2rem;
+    block-size: 2rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+
+    @media (pointer: coarse) {
+      inline-size: 2.5rem;
+      block-size: 2.5rem;
+    }
+
+    &:hover:not(:disabled) {
+      color: var(--color-text);
+      background-color: var(--color-surface);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
 }

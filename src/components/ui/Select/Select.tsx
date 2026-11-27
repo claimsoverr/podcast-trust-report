@@ -5,6 +5,7 @@ import type { SelectProps } from "./Select.types";
 export function Select({
   label,
   options,
+  groups,
   hint,
   error,
   id,
@@ -27,11 +28,29 @@ export function Select({
           {...controlProps}
           {...rest}
         >
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value} disabled={opt.disabled}>
-              {opt.label}
-            </option>
-          ))}
+          {groups
+            ? groups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((opt) => (
+                    <option
+                      key={opt.value}
+                      value={opt.value}
+                      disabled={opt.disabled}
+                    >
+                      {opt.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))
+            : options?.map((opt) => (
+                <option
+                  key={opt.value}
+                  value={opt.value}
+                  disabled={opt.disabled}
+                >
+                  {opt.label}
+                </option>
+              ))}
         </select>
       )}
     </Field>

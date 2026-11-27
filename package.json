@@ -20,6 +20,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.110",
+    "@ai-sdk/google": "^4.0.128",
+    "@ai-sdk/openai": "^4.0.125",
     "@ai-sdk/openai-compatible": "^3.0.77",
     "ai": "^7.0.150",
     "clsx": "^2.1.1",

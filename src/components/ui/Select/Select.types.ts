@@ -1,4 +1,4 @@
-import type { SelectHTMLAttributes } from "react";
+import type { ReactNode, SelectHTMLAttributes } from "react";
 
 export interface SelectOption {
   value: string;
@@ -6,9 +6,15 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
-export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectOptionGroup {
   label: string;
   options: readonly SelectOption[];
-  hint?: string;
+}
+
+export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  label: string;
+  options?: readonly SelectOption[];
+  groups?: readonly SelectOptionGroup[];
+  hint?: ReactNode;
   error?: string;
 }

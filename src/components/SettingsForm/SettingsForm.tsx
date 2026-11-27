@@ -1,76 +1,86 @@
 import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
-import {
-  Button,
-  Fieldset,
-  Input,
-  Select,
-  type SelectOption,
-} from "@/components/ui";
+import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
+import { Button, Fieldset, Input, Select } from "@/components/ui";
 import { useNotifications } from "@/notifications";
 import {
+  AI_PROVIDER_GROUPS,
+  AI_PROVIDERS,
   type AIProvider,
-  type AISettings,
-  API_URL_PLACEHOLDER,
+  DEFAULT_PROVIDER,
+  isValidAIProvider,
+} from "@/utils/providers";
+import {
+  type AIConnection,
+  type AIConnectionInput,
   fetchAvailableModels,
-  MODEL_ID_PLACEHOLDER,
-  normalizeAISettings,
-  SUGGESTED_API_URLS,
-  validateAISettings,
+  isValidHttpUrl,
+  normalizeConnectionInput,
+  validateAIConnection,
 } from "@/utils/settings";
 import styles from "./SettingsForm.module.css";
 
-const PROVIDER_OPTIONS: readonly SelectOption[] = [
-  { value: "openai-compatible", label: "OpenAI-compatible" },
-  { value: "google", label: "Google", disabled: true },
-];
-
 interface SettingsFormProps {
-  settings: AISettings;
-  hasSavedSettings: boolean;
+  initialConnection?: AIConnection;
   disabled?: boolean;
-  onSave: (nextSettings: AISettings) => void;
-  onClear: () => void;
+  onSave: (input: AIConnectionInput) => void;
+  onCancel: () => void;
 }
 
-function getModelRequestKey(apiUrl: string, apiKey: string): string {
-  const trimmedUrl = apiUrl.trim().replace(/\/+$/, "");
-  if (!trimmedUrl) {
-    return "";
-  }
-
-  try {
-    const parsed = new URL(trimmedUrl);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+function getModelRequestKey(
+  provider: AIProvider,
+  apiUrl: string,
+  apiKey: string,
+): string {
+  const config = AI_PROVIDERS[provider];
+  if (config.requiresUrl) {
+    const trimmedUrl = apiUrl.trim().replace(/\/+$/, "");
+    if (!trimmedUrl || !isValidHttpUrl(trimmedUrl)) {
       return "";
     }
-    return `${trimmedUrl}\0${apiKey.trim()}`;
-  } catch {
+    return `${provider}\0${trimmedUrl}\0${apiKey.trim()}`;
+  }
+
+  const trimmedKey = apiKey.trim();
+  if (!trimmedKey) {
     return "";
   }
+  return `${provider}\0${trimmedKey}`;
 }
 
 export function SettingsForm({
-  settings,
-  hasSavedSettings,
+  initialConnection,
   disabled = false,
   onSave,
-  onClear,
+  onCancel,
 }: SettingsFormProps) {
-  const { notifyError, notifySuccess } = useNotifications();
-  const [provider, setProvider] = useState<AIProvider>(settings.provider);
-  const [apiUrl, setApiUrl] = useState(settings.apiUrl);
-  const [modelId, setModelId] = useState(settings.modelId);
-  const [apiKey, setApiKey] = useState(settings.apiKey);
+  const { notifyError } = useNotifications();
+  const initialProvider = initialConnection?.provider ?? DEFAULT_PROVIDER;
+
+  const [name, setName] = useState(initialConnection?.name ?? "");
+  const [provider, setProvider] = useState<AIProvider>(initialProvider);
+  const [apiUrl, setApiUrl] = useState(
+    initialConnection
+      ? initialConnection.apiUrl
+      : AI_PROVIDERS[initialProvider].defaultUrl,
+  );
+  const [apiKey, setApiKey] = useState(initialConnection?.apiKey ?? "");
+  const [modelId, setModelId] = useState(initialConnection?.modelId ?? "");
   const [modelCatalog, setModelCatalog] = useState<{
     requestKey: string;
     models: string[];
   }>({ requestKey: "", models: [] });
-  const [testing, setTesting] = useState(false);
+  const [fetchingToken, setFetchingToken] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [saving, setSaving] = useState(false);
+
   const abortControllerRef = useRef<AbortController | null>(null);
-  const apiUrlListId = useId();
   const modelListId = useId();
 
-  const requestKey = getModelRequestKey(apiUrl, apiKey);
+  const providerConfig = AI_PROVIDERS[provider];
+  const requestKey = getModelRequestKey(provider, apiUrl, apiKey);
+  const activeFetchToken = requestKey ? `${requestKey}\0${refreshNonce}` : "";
+  const fetchingModels =
+    Boolean(activeFetchToken) && fetchingToken === activeFetchToken;
   const availableModels =
     modelCatalog.requestKey === requestKey ? modelCatalog.models : [];
 
@@ -86,9 +96,13 @@ export function SettingsForm({
     }
 
     const controller = new AbortController();
+    const delay = refreshNonce > 0 ? 0 : 300;
+
     const timerId = window.setTimeout(async () => {
+      setFetchingToken(activeFetchToken);
       try {
         const result = await fetchAvailableModels(
+          provider,
           apiUrl,
           apiKey,
           controller.signal,
@@ -104,57 +118,100 @@ export function SettingsForm({
         if (!controller.signal.aborted) {
           setModelCatalog({ requestKey, models: [] });
         }
+      } finally {
+        if (!controller.signal.aborted) {
+          setFetchingToken(null);
+        }
       }
-    }, 300);
+    }, delay);
 
     return () => {
       window.clearTimeout(timerId);
       controller.abort();
     };
-  }, [requestKey, apiUrl, apiKey]);
+  }, [requestKey, activeFetchToken, provider, apiUrl, apiKey, refreshNonce]);
 
-  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (disabled || testing) {
+  const handleProviderChange = (nextValue: string) => {
+    if (!isValidAIProvider(nextValue)) {
       return;
     }
 
-    const normalized = normalizeAISettings({
-      provider,
-      apiUrl,
-      modelId,
-      apiKey,
-    });
-    if (!normalized.apiUrl || !normalized.modelId) {
-      notifyError("Both API URL and Model ID are required.");
-      return;
-    }
-
-    try {
-      new URL(normalized.apiUrl);
-    } catch {
-      notifyError(
-        "Please enter a valid API URL (e.g. http://localhost:1235/v1).",
-      );
-      return;
-    }
-
-    onSave(normalized);
+    const nextConfig = AI_PROVIDERS[nextValue];
+    setProvider(nextValue);
+    setApiUrl(nextConfig.defaultUrl);
+    setApiKey("");
+    setModelId("");
+    setModelCatalog({ requestKey: "", models: [] });
+    setRefreshNonce(0);
   };
 
-  const handleTestConnection = async () => {
-    if (disabled || testing) {
+  const handleRefreshModels = () => {
+    if (!requestKey) {
+      if (providerConfig.requiresUrl) {
+        notifyError(
+          `Enter a valid ${providerConfig.urlLabel ?? "API URL"} before loading models.`,
+        );
+      } else {
+        notifyError(
+          `Enter your ${providerConfig.label} API Key before loading models.`,
+        );
+      }
+      return;
+    }
+
+    setRefreshNonce((prev) => prev + 1);
+  };
+
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (disabled || saving) {
+      return;
+    }
+
+    const normalized = normalizeConnectionInput({
+      name,
+      provider,
+      apiUrl,
+      apiKey,
+      modelId,
+    });
+
+    if (!normalized.name) {
+      notifyError("Connection Name is required.");
+      return;
+    }
+
+    if (providerConfig.requiresUrl) {
+      if (!normalized.apiUrl) {
+        notifyError(`${providerConfig.urlLabel ?? "API URL"} is required.`);
+        return;
+      }
+      if (!isValidHttpUrl(normalized.apiUrl)) {
+        notifyError(
+          `Please enter a valid ${providerConfig.urlLabel ?? "API URL"} (e.g. ${providerConfig.urlPlaceholder}).`,
+        );
+        return;
+      }
+    }
+
+    if (providerConfig.requiresApiKey && !normalized.apiKey) {
+      notifyError(`API Key is required for ${providerConfig.label}.`);
+      return;
+    }
+
+    if (!normalized.modelId) {
+      notifyError("Model ID is required.");
       return;
     }
 
     abortControllerRef.current?.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    setTesting(true);
+    setSaving(true);
 
     try {
-      const validation = await validateAISettings(
-        { provider, apiUrl, modelId, apiKey },
+      const validation = await validateAIConnection(
+        normalized,
         controller.signal,
       );
       if (controller.signal.aborted) {
@@ -163,7 +220,7 @@ export function SettingsForm({
 
       if (validation.valid) {
         setModelCatalog({ requestKey, models: validation.models });
-        notifySuccess("Connection verified. Model is available.");
+        onSave(normalized);
       } else {
         if (validation.models) {
           setModelCatalog({ requestKey, models: validation.models });
@@ -178,68 +235,271 @@ export function SettingsForm({
       notifyError(
         err instanceof Error
           ? err.message
-          : "Could not verify AI connection.",
+          : "Could not verify AI Connection.",
       );
     } finally {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
-        setTesting(false);
+        setSaving(false);
       }
     }
   };
 
-  const isFormDisabled = disabled || testing;
+  const isFormDisabled = disabled || saving;
+  const cleanUrlForPresetMatch = apiUrl.trim().replace(/\/+$/, "");
+
+  const recommendedIds = new Set(
+    providerConfig.recommendedModels?.map((item) => item.id) ?? [],
+  );
+  const discoveredSuggestions = availableModels
+    .filter((id) => !recommendedIds.has(id))
+    .slice(0, 6);
 
   return (
     <form onSubmit={handleSubmit} noValidate className={styles.form}>
+      <div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={isFormDisabled}
+          onClick={onCancel}
+        >
+          <ArrowLeft aria-hidden="true" size={16} />
+          Back to connections
+        </Button>
+      </div>
+
       <Fieldset disabled={isFormDisabled}>
-        <legend className="visually-hidden">AI Settings</legend>
+        <legend className="visually-hidden">
+          {initialConnection ? "Edit AI Connection" : "Add AI Connection"}
+        </legend>
 
         <div className={styles.fields}>
+          <Input
+            label="Connection Name"
+            type="text"
+            required
+            autoFocus
+            placeholder={providerConfig.namePlaceholder}
+            hint="A label to identify this connection in your list."
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+
           <Select
             label="AI Provider"
-            options={PROVIDER_OPTIONS}
+            groups={AI_PROVIDER_GROUPS}
             value={provider}
-            hint="Google is not supported yet."
-            onChange={(event) => setProvider(event.target.value as AIProvider)}
+            onChange={(event) => handleProviderChange(event.target.value)}
           />
 
-          <Input
-            label="API URL"
-            type="url"
-            autoFocus
-            list={apiUrlListId}
-            placeholder={API_URL_PLACEHOLDER}
-            value={apiUrl}
-            onChange={(event) => setApiUrl(event.target.value)}
-          />
-          <datalist id={apiUrlListId}>
-            {SUGGESTED_API_URLS.map((url) => (
-              <option key={url} value={url} />
-            ))}
-          </datalist>
+          <div className={styles.providerBanner}>
+            <p className={styles.bannerSummary}>{providerConfig.summary}</p>
+            <div className={styles.bannerLinks}>
+              <a
+                href={providerConfig.primaryLink.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.externalLink}
+              >
+                {providerConfig.primaryLink.label}
+                <ExternalLink aria-hidden="true" size={13} />
+              </a>
+              {providerConfig.secondaryLink ? (
+                <a
+                  href={providerConfig.secondaryLink.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.externalLink}
+                >
+                  {providerConfig.secondaryLink.label}
+                  <ExternalLink aria-hidden="true" size={13} />
+                </a>
+              ) : null}
+            </div>
+            {providerConfig.privacyNote ? (
+              <p className={styles.privacyNote}>{providerConfig.privacyNote}</p>
+            ) : null}
+          </div>
 
-          <Input
-            label="API Key (optional for local)"
-            type="password"
-            placeholder="sk-..."
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-          />
+          <details className={styles.guide}>
+            <summary className={styles.guideSummary}>
+              Setup &amp; troubleshooting
+            </summary>
+            <ol className={styles.guideList}>
+              {providerConfig.setupSteps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </details>
 
-          <Input
-            label="Model ID"
-            type="text"
-            list={modelListId}
-            placeholder={MODEL_ID_PLACEHOLDER}
-            value={modelId}
-            onChange={(event) => setModelId(event.target.value)}
-          />
-          <datalist id={modelListId}>
-            {availableModels.map((id) => (
-              <option key={id} value={id} />
-            ))}
-          </datalist>
+          {providerConfig.requiresUrl ? (
+            <div className={styles.fieldGroup}>
+              <Input
+                label={providerConfig.urlLabel ?? "API URL"}
+                type="url"
+                required
+                placeholder={providerConfig.urlPlaceholder}
+                hint={
+                  provider === "openai-compatible" ? (
+                    <>
+                      Base URL ending in <code>/v1</code> (recommended:{" "}
+                      <code>http://localhost:1235/v1</code> for LM Studio
+                      Bionic).
+                    </>
+                  ) : (
+                    <>
+                      Base Ollama server URL (default:{" "}
+                      <code>http://localhost:11434</code>).
+                    </>
+                  )
+                }
+                value={apiUrl}
+                onChange={(event) => setApiUrl(event.target.value)}
+              />
+
+              {providerConfig.urlPresets?.length ? (
+                <div
+                  className={styles.chipRow}
+                  role="group"
+                  aria-label="Quick-fill server URLs"
+                >
+                  {providerConfig.urlPresets.map((preset) => {
+                    const isSelected = cleanUrlForPresetMatch === preset.url;
+                    return (
+                      <button
+                        key={preset.url}
+                        type="button"
+                        className={styles.chip}
+                        data-selected={isSelected || undefined}
+                        onClick={() => setApiUrl(preset.url)}
+                      >
+                        <span>{preset.label}</span>
+                        <code className={styles.chipCode}>{preset.url}</code>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {providerConfig.supportsApiKey ? (
+            <Input
+              label={
+                providerConfig.requiresApiKey
+                  ? "API Key"
+                  : "API Key (optional for local)"
+              }
+              type="password"
+              required={providerConfig.requiresApiKey}
+              autoComplete="off"
+              placeholder={providerConfig.apiKeyPlaceholder}
+              hint={
+                providerConfig.requiresApiKey ? (
+                  <>
+                    Stored only in this browser.{" "}
+                    <a
+                      href={providerConfig.primaryLink.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Generate an API key
+                    </a>
+                    .
+                  </>
+                ) : (
+                  "Leave blank for LM Studio Bionic or other local servers."
+                )
+              }
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+            />
+          ) : null}
+
+          <div className={styles.fieldGroup}>
+            <div className={styles.modelRow}>
+              <Input
+                label="Model ID"
+                type="text"
+                required
+                list={modelListId}
+                placeholder={providerConfig.modelPlaceholder}
+                hint="Pick a suggestion below or enter any supported model ID."
+                className={styles.modelInput}
+                value={modelId}
+                onChange={(event) => setModelId(event.target.value)}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                isLoading={fetchingModels}
+                disabled={isFormDisabled}
+                className={styles.refreshButton}
+                aria-label="Refresh available models"
+                onClick={handleRefreshModels}
+              >
+                {fetchingModels ? null : (
+                  <RefreshCw aria-hidden="true" size={14} />
+                )}
+                Refresh
+              </Button>
+            </div>
+            <datalist id={modelListId}>
+              {availableModels.map((id) => (
+                <option key={id} value={id} />
+              ))}
+            </datalist>
+
+            {providerConfig.recommendedModels?.length ? (
+              <div
+                className={styles.chipRow}
+                role="group"
+                aria-label="Recommended models"
+              >
+                {providerConfig.recommendedModels.map((model) => {
+                  const isSelected = modelId.trim() === model.id;
+                  return (
+                    <button
+                      key={model.id}
+                      type="button"
+                      className={styles.chip}
+                      data-selected={isSelected || undefined}
+                      onClick={() => setModelId(model.id)}
+                    >
+                      <span>{model.label}</span>
+                      <code className={styles.chipCode}>{model.id}</code>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {discoveredSuggestions.length > 0 ? (
+              <div
+                className={styles.chipRow}
+                role="group"
+                aria-label="Available models from server"
+              >
+                {discoveredSuggestions.map((id) => {
+                  const isSelected = modelId.trim() === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className={styles.chip}
+                      data-selected={isSelected || undefined}
+                      onClick={() => setModelId(id)}
+                    >
+                      <code className={styles.chipCode}>{id}</code>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
       </Fieldset>
 
@@ -248,36 +508,22 @@ export function SettingsForm({
           type="submit"
           variant="primary"
           fullWidth
-          disabled={isFormDisabled}
+          isLoading={saving}
+          disabled={disabled}
         >
-          Save
+          {saving ? "Verifying..." : "Save connection"}
         </Button>
 
         <Button
           type="button"
           variant="secondary"
           fullWidth
-          isLoading={testing}
-          disabled={disabled}
-          onClick={handleTestConnection}
+          disabled={isFormDisabled}
+          onClick={onCancel}
         >
-          {testing ? "Testing connection..." : "Test connection"}
+          Cancel
         </Button>
       </div>
-
-      {hasSavedSettings ? (
-        <div className={styles.clearSection}>
-          <Button
-            type="button"
-            variant="danger"
-            fullWidth
-            disabled={isFormDisabled}
-            onClick={onClear}
-          >
-            Clear settings
-          </Button>
-        </div>
-      ) : null}
     </form>
   );
 }

@@ -9,7 +9,7 @@ export interface FieldControlProps {
 
 export interface FieldProps {
   label: string;
-  hint?: string;
+  hint?: ReactNode;
   error?: string;
   id?: string;
   required?: boolean;

@@ -29,7 +29,11 @@ export { Input } from "./Input";
 export type { InputProps } from "./Input";
 
 export { Select } from "./Select";
-export type { SelectOption, SelectProps } from "./Select";
+export type {
+  SelectOption,
+  SelectOptionGroup,
+  SelectProps,
+} from "./Select";
 
 export { Skeleton } from "./Skeleton";
 export type { SkeletonProps, SkeletonVariant } from "./Skeleton";

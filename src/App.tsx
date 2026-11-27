@@ -6,15 +6,16 @@ import { Button, Card, CardContent, Flex } from "@/components/ui";
 import { useNotifications } from "@/notifications";
 import { runSampleAgent } from "@/utils/agent";
 import {
-  clearAISettings,
-  DEFAULT_AI_SETTINGS,
-  hasSavedAISettings,
-  isAISettingsConfigured,
+  addConnection,
+  type AIConnectionInput,
+  type AISettings,
+  deleteConnection,
+  getActiveConnection,
   loadAISettings,
-  normalizeAISettings,
   saveAISettings,
+  setActiveConnection,
+  updateConnection,
 } from "@/utils/settings";
-import type { AISettings } from "@/utils/settings";
 import styles from "./App.module.css";
 
 export function App() {
@@ -24,27 +25,53 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [output, setOutput] = useState("");
 
-  const configured = isAISettingsConfigured(settings);
-  const hasSaved = hasSavedAISettings(settings);
+  const activeConnection = getActiveConnection(settings);
 
-  const handleSaveSettings = (nextSettings: AISettings) => {
-    const normalized = normalizeAISettings(nextSettings);
-    saveAISettings(normalized);
-    setSettings(normalized);
-    setIsSettingsOpen(false);
-    notifySuccess("AI Settings saved.");
+  const commitSettings = (nextSettings: AISettings) => {
+    saveAISettings(nextSettings);
+    setSettings(nextSettings);
   };
 
-  const handleClearSettings = () => {
-    clearAISettings();
-    setSettings(DEFAULT_AI_SETTINGS);
-    setOutput("");
-    setIsSettingsOpen(false);
-    notifyInfo("AI Settings cleared.");
+  const handleSelectActive = (id: string) => {
+    if (id === settings.activeConnectionId) {
+      return;
+    }
+    const nextSettings = setActiveConnection(settings, id);
+    commitSettings(nextSettings);
+    const chosen = getActiveConnection(nextSettings);
+    if (chosen) {
+      notifyInfo(`Switched active AI Connection to "${chosen.name}".`);
+    }
+  };
+
+  const handleAddConnection = (input: AIConnectionInput) => {
+    const nextSettings = addConnection(settings, input);
+    commitSettings(nextSettings);
+    notifySuccess(`AI Connection "${input.name}" added and set as active.`);
+  };
+
+  const handleUpdateConnection = (id: string, input: AIConnectionInput) => {
+    const nextSettings = updateConnection(settings, id, input);
+    commitSettings(nextSettings);
+    notifySuccess(`AI Connection "${input.name}" updated.`);
+  };
+
+  const handleDeleteConnection = (id: string) => {
+    const target = settings.connections.find((conn) => conn.id === id);
+    const nextSettings = deleteConnection(settings, id);
+    commitSettings(nextSettings);
+    if (nextSettings.connections.length === 0) {
+      setOutput("");
+    }
+    notifyInfo(
+      target
+        ? `AI Connection "${target.name}" deleted.`
+        : "AI Connection deleted.",
+    );
   };
 
   const handleRun = async () => {
-    if (!configured || running) {
+    if (!activeConnection || running) {
       return;
     }
 
@@ -52,7 +79,7 @@ export function App() {
     setOutput("");
 
     try {
-      await runSampleAgent(settings, setOutput);
+      await runSampleAgent(activeConnection, setOutput);
     } catch (err) {
       const message =
         err instanceof Error
@@ -75,18 +102,25 @@ export function App() {
       <main className={styles.page}>
         <header className={styles.header}>
           <h1 className={styles.title}>Podcast Trust Report</h1>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={running}
-            onClick={() => setIsSettingsOpen(true)}
-          >
-            <Settings aria-hidden="true" size={16} />
-            Settings
-          </Button>
+          <div className={styles.headerActions}>
+            {activeConnection ? (
+              <span className={styles.activeConnection} title={activeConnection.name}>
+                {activeConnection.name}
+              </span>
+            ) : null}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={running}
+              onClick={() => setIsSettingsOpen(true)}
+            >
+              <Settings aria-hidden="true" size={16} />
+              Settings
+            </Button>
+          </div>
         </header>
 
-        {configured ? (
+        {activeConnection ? (
           <AgentRunner running={running} output={output} onRun={handleRun} />
         ) : (
           <div className={styles.setupContainer}>
@@ -95,8 +129,8 @@ export function App() {
                 <Flex direction="column" align="center" gap={4}>
                   <h2 className={styles.setupTitle}>Configure AI Settings</h2>
                   <p className={styles.setupDescription}>
-                    Add your API URL and Model ID in Settings to start
-                    generating Trust Reports.
+                    Add an AI Connection in Settings to start generating Trust
+                    Reports.
                   </p>
                   <Button
                     variant="primary"
@@ -114,11 +148,12 @@ export function App() {
       <SettingsDrawer
         open={isSettingsOpen}
         settings={settings}
-        hasSavedSettings={hasSaved}
         disabled={running}
         onClose={() => setIsSettingsOpen(false)}
-        onSave={handleSaveSettings}
-        onClear={handleClearSettings}
+        onSelectActive={handleSelectActive}
+        onAddConnection={handleAddConnection}
+        onUpdateConnection={handleUpdateConnection}
+        onDeleteConnection={handleDeleteConnection}
       />
     </>
   );

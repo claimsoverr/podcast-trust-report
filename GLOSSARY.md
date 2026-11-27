@@ -11,4 +11,5 @@ Canonical domain terms for Podcast Trust Report. Use these exact terms in code, 
 - **Host** — The regular presenter or interviewer of a Podcast.
 - **Guest** — An invited speaker on an Episode.
 - **Trustworthiness** — The canonical measure of reliability for an Episode or Guest (e.g., `Trustworthiness Score`, `Guest Trustworthiness`). (*Avoid:* credibility)
-- **Settings** — User configuration stored locally in the browser, covering personal preferences (e.g., theme) and **AI Settings** (provider, API key, URL, model ID).
+- **AI Connection** — A named, locally stored configuration for an AI provider (provider type, model ID, and provider-specific credentials or URL). Multiple AI Connections can be saved, with one active at a time.
+- **Settings** — User configuration stored locally in the browser, covering personal preferences (e.g., theme) and **AI Settings** (managing **AI Connections** and selecting the active one).
