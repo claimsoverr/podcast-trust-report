@@ -22,6 +22,7 @@ Everything runs in your browser with no backend server. Your API keys and settin
 ## Tech Stack
 
 - **UI:** React, TypeScript, Vite
+- **Generated UI:** OpenUI (`@openuidev/react-lang`, `@openuidev/lang-core`)
 - **AI Agent:** Vercel AI SDK (`ai`, `@ai-sdk/openai-compatible`, `@ai-sdk/openai`, `@ai-sdk/google`, `@ai-sdk/anthropic`, `zod`) running client-side
 - **Styling:** Vanilla modern CSS (Baseline 2026) and CSS Modules
 - **Linting:** `oxlint`

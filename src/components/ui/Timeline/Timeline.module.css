@@ -1,0 +1,63 @@
+@layer components {
+  .timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    container-type: inline-size;
+  }
+
+  .item {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+    padding-block: var(--space-3);
+    border-block-end: 1px solid var(--color-border-subtle);
+
+    &:first-child {
+      padding-block-start: 0;
+    }
+
+    &:last-child {
+      padding-block-end: 0;
+      border-block-end: none;
+    }
+
+    @container (inline-size >= 28rem) {
+      grid-template-columns: minmax(4.75rem, auto) 1fr;
+      gap: var(--space-4);
+      align-items: baseline;
+    }
+  }
+
+  .time {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-inline-size: 0;
+  }
+
+  .title {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+    overflow-wrap: anywhere;
+  }
+
+  .description {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}

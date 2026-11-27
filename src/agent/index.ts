@@ -10,5 +10,7 @@ export type {
   EpisodeTranscript,
   RunTrustReportInput,
   RunTrustReportResult,
+  TokenUsage,
+  UiOutputValidationResult,
   WebSearchMode,
 } from "./types";

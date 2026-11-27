@@ -27,22 +27,39 @@
     font-weight: var(--weight-medium);
   }
 
+  .statusMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .usageBadge {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
   .hintBadge {
     font-size: var(--text-xs);
     color: var(--color-text-muted);
   }
 
-  .output {
+  .reportRegion {
     display: block;
     min-block-size: 12rem;
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    line-height: 1.55;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+  }
+
+  .emptyState {
+    min-block-size: 10rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .emptyOutput {
+    font-size: var(--text-sm);
     color: var(--color-text-muted);
   }
 }

@@ -42,20 +42,38 @@ export type AgentStatusStage =
   | "fetching-metadata"
   | "fetching-transcript"
   | "searching-web"
-  | "generating";
+  | "generating"
+  | "repairing";
 
 export interface AgentStatusEvent {
   stage: AgentStatusStage;
   message: string;
 }
 
+export interface UiOutputValidationResult {
+  valid: boolean;
+  hasRoot: boolean;
+  errors: string[];
+}
+
 export interface RunTrustReportInput {
   episodeUrl: string;
   model: AgentModelConfig;
   tools: AgentToolsConfig;
+  uiSystemPrompt?: string;
   signal?: AbortSignal;
+  onMetadata?: (metadata: EpisodeMetadata) => void;
   onStatus?: (status: AgentStatusEvent) => void;
   onText?: (textSoFar: string) => void;
+  validateUiOutput?: (raw: string) => UiOutputValidationResult;
+}
+
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  repairTokens: number;
+  repaired: boolean;
 }
 
 export interface RunTrustReportResult {
@@ -63,4 +81,7 @@ export interface RunTrustReportResult {
   text: string;
   webSearchEnabled: boolean;
   webSearchMode: WebSearchMode;
+  webSearchCount: number;
+  durationMs: number;
+  usage: TokenUsage | null;
 }

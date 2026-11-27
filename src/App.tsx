@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Settings } from "lucide-react";
-import { extractVideoId, runTrustReport } from "@/agent";
+import {
+  type EpisodeMetadata,
+  extractVideoId,
+  runTrustReport,
+  type TokenUsage,
+} from "@/agent";
 import { AgentRunner } from "@/components/AgentRunner";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
 import { Alert, Button, Card, CardContent, Flex } from "@/components/ui";
 import { useNotifications } from "@/notifications";
+import {
+  TRUST_REPORT_UI_PROMPT,
+  validateTrustReportOutput,
+} from "@/openui";
 import {
   type AIGeneralSettings,
   loadAIGeneralSettings,
@@ -41,7 +50,15 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [output, setOutput] = useState("");
+  const [episodeMetadata, setEpisodeMetadata] =
+    useState<EpisodeMetadata | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
+  const [webSearchCount, setWebSearchCount] = useState<number | null>(null);
+  const [generationDurationMs, setGenerationDurationMs] = useState<
+    number | null
+  >(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const renderErrorRef = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -96,6 +113,10 @@ export function App() {
     commitSettings(nextSettings);
     if (nextSettings.connections.length === 0) {
       setOutput("");
+      setEpisodeMetadata(null);
+      setTokenUsage(null);
+      setWebSearchCount(null);
+      setGenerationDurationMs(null);
       setStatusMessage(null);
     }
     notifyInfo(
@@ -107,6 +128,14 @@ export function App() {
 
   const handleCancel = () => {
     abortControllerRef.current?.abort();
+  };
+
+  const handleRenderError = (message: string) => {
+    renderErrorRef.current = message;
+    abortControllerRef.current?.abort();
+    setStatusMessage(null);
+    setRunning(false);
+    notifyError(`OpenUI failed to render the Trust Report: ${message}`);
   };
 
   const handleRun = async () => {
@@ -137,9 +166,14 @@ export function App() {
     abortControllerRef.current?.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    renderErrorRef.current = null;
 
     setRunning(true);
     setOutput("");
+    setEpisodeMetadata(null);
+    setTokenUsage(null);
+    setWebSearchCount(null);
+    setGenerationDurationMs(null);
     setStatusMessage("Validating AI Connection...");
 
     try {
@@ -154,7 +188,7 @@ export function App() {
         throw new Error(validation.error);
       }
 
-      await runTrustReport({
+      const report = await runTrustReport({
         episodeUrl,
         model: {
           provider: activeConnection.provider,
@@ -166,17 +200,39 @@ export function App() {
           corsProxyUrl: effectiveProxy.url,
           webSearch: activeConnection.tools.webSearch,
         },
+        uiSystemPrompt: TRUST_REPORT_UI_PROMPT,
         signal: controller.signal,
+        onMetadata: setEpisodeMetadata,
         onStatus: (status) => {
           setStatusMessage(status.message);
         },
         onText: setOutput,
+        validateUiOutput: validateTrustReportOutput,
       });
 
       setStatusMessage(null);
-      notifySuccess("Trust Report ready.");
+      setTokenUsage(report.usage);
+      setWebSearchCount(report.webSearchCount);
+      setGenerationDurationMs(report.durationMs);
+      const uiValidation = validateTrustReportOutput(report.text);
+      if (!uiValidation.hasRoot) {
+        notifyError(
+          uiValidation.errorMessage ??
+            "Could not render structured Trust Report. Showing raw output.",
+        );
+      } else if (!uiValidation.valid) {
+        notifyInfo(
+          "Trust Report generated with OpenUI validation warnings.",
+        );
+      } else {
+        notifySuccess("Trust Report ready.");
+      }
     } catch (err) {
       setStatusMessage(null);
+
+      if (renderErrorRef.current) {
+        return;
+      }
 
       if (controller.signal.aborted || isAbortError(err)) {
         notifyInfo("Trust Report generation cancelled.");
@@ -283,10 +339,15 @@ export function App() {
               running={running}
               statusMessage={statusMessage}
               output={output}
+              episodeMetadata={episodeMetadata}
+              tokenUsage={tokenUsage}
               webSearchMode={webSearchMode}
+              webSearchCount={webSearchCount}
+              generationDurationMs={generationDurationMs}
               missingProxyInProd={!effectiveProxy.url}
               onRun={handleRun}
               onCancel={handleCancel}
+              onRenderError={handleRenderError}
             />
           ) : (
             <div className={styles.setupContainer}>

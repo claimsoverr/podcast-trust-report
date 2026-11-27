@@ -1,0 +1,29 @@
+@layer components {
+  .scoreRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-block-end: var(--space-3);
+  }
+
+  .scoreValue {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(1.5rem, 4vi, 2rem);
+    font-weight: var(--weight-semibold);
+    line-height: 1.1;
+    color: var(--color-text);
+  }
+
+  .scoreScale {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-inline-start: var(--space-1);
+  }
+
+  .rationale {
+    margin-block-start: var(--space-3);
+  }
+}

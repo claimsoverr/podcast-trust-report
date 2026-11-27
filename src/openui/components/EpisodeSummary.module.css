@@ -1,0 +1,8 @@
+@layer components {
+  .metaGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    gap: var(--space-2);
+    margin-block-end: var(--space-4);
+  }
+}

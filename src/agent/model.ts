@@ -41,6 +41,7 @@ export function createProviderModel(
       const provider = createOpenAICompatible({
         name: "user-configured-ai",
         baseURL: apiUrl,
+        includeUsage: true,
         ...(apiKey ? { apiKey } : {}),
       });
       return {
@@ -52,6 +53,7 @@ export function createProviderModel(
       const provider = createOpenAICompatible({
         name: "ollama",
         baseURL: `${apiUrl}/v1`,
+        includeUsage: true,
       });
       return {
         model: provider(modelId),

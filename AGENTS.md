@@ -12,6 +12,7 @@ For product scope and features, see [README.md](README.md).
 
 - **Vanilla modern HTML/CSS (Baseline 2026)** — Prefer native HTML primitives (`<dialog>`, `popover`, semantic elements) and modern CSS (custom properties, `@layer`, `display: grid`, `@container` queries, fluid `clamp()` sizing, `light-dark()`). Avoid CSS frameworks; see [ADR 0002](docs/adr/0002-vanilla-modern-css-and-css-modules.md).
 - **Component-per-folder & CSS Modules** — Place reusable UI primitives in `src/components/ui/<Name>/` (re-exported from `src/components/ui/index.ts`) and feature components in `src/components/<Name>/`, each with locally scoped `*.module.css` styles. Prefer `Skeleton` for content/report loading states, reserving `Spinner` for inline button loading.
+- **OpenUI isolation** — Keep all `@openuidev/*` schemas, library registration, prompt compilation, and renderer logic inside `src/openui/`, composed from `src/components/ui/` primitives while keeping `src/components/ui/` and `src/agent/` OpenUI-free; see [ADR 0004](docs/adr/0004-openui-trust-report-architecture.md).
 - **Import aliases** — Use `@/*` (mapped to `src/*`) for cross-directory imports.
 
 ## Visual Design

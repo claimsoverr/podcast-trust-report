@@ -1,0 +1,64 @@
+@layer components {
+  .meter {
+    --meter-fill: var(--color-accent);
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    inline-size: 100%;
+
+    &.success {
+      --meter-fill: var(--color-success);
+    }
+
+    &.warning {
+      --meter-fill: var(--color-warning);
+    }
+
+    &.danger {
+      --meter-fill: var(--color-danger);
+    }
+  }
+
+  .header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .label {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-text-muted);
+  }
+
+  .value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+  }
+
+  .track {
+    inline-size: 100%;
+    block-size: 0.5rem;
+    border-radius: var(--radius-pill);
+    background-color: var(--color-surface-subtle);
+    border: 1px solid var(--color-border-subtle);
+    overflow: hidden;
+  }
+
+  .fill {
+    block-size: 100%;
+    border-radius: var(--radius-pill);
+    background-color: var(--meter-fill);
+    transition: inline-size var(--duration-fast) var(--easing-standard);
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+}

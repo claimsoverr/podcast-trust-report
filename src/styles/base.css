@@ -18,6 +18,10 @@
 }
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     min-block-size: 100dvb;
     font-family: var(--font-sans);

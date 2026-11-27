@@ -1,5 +1,5 @@
 import type { SubmitEvent } from "react";
-import type { WebSearchMode } from "@/agent";
+import type { EpisodeMetadata, TokenUsage, WebSearchMode } from "@/agent";
 import {
   Button,
   Card,
@@ -8,6 +8,7 @@ import {
   Input,
   Skeleton,
 } from "@/components/ui";
+import { TrustReportRenderer } from "@/openui";
 import styles from "./AgentRunner.module.css";
 
 interface AgentRunnerProps {
@@ -16,24 +17,63 @@ interface AgentRunnerProps {
   running: boolean;
   statusMessage: string | null;
   output: string;
+  episodeMetadata: EpisodeMetadata | null;
+  tokenUsage: TokenUsage | null;
   webSearchMode: WebSearchMode;
+  webSearchCount: number | null;
+  generationDurationMs: number | null;
   missingProxyInProd: boolean;
   onRun: () => void;
   onCancel: () => void;
+  onRenderError?: (message: string) => void;
 }
 
-function getWebSearchBadgeText(mode: WebSearchMode): string {
+function getWebSearchBadgeText(
+  mode: WebSearchMode,
+  count: number | null,
+  running: boolean,
+): string {
+  const countSuffix =
+    mode !== "none" && !running && count !== null
+      ? ` (${count} ${count === 1 ? "query" : "queries"})`
+      : "";
+
   switch (mode) {
     case "native": {
-      return "Web search: Built-in";
+      return `Web search: Built-in${countSuffix}`;
     }
     case "exa": {
-      return "Web search: Exa";
+      return `Web search: Exa${countSuffix}`;
     }
     case "none": {
       return "Web search: Off (enable in Connection settings)";
     }
   }
+}
+
+const numberFormatter = new Intl.NumberFormat();
+
+function formatTokenUsage(usage: TokenUsage): string {
+  const total = numberFormatter.format(usage.totalTokens);
+  const input = numberFormatter.format(usage.inputTokens);
+  const output = numberFormatter.format(usage.outputTokens);
+  const repairSuffix =
+    usage.repaired && usage.repairTokens > 0
+      ? ` · incl. ${numberFormatter.format(usage.repairTokens)} repair`
+      : "";
+
+  return `Tokens: ${total} (${input} in · ${output} out${repairSuffix})`;
+}
+
+function formatDuration(durationMs: number): string {
+  const totalSeconds = durationMs / 1000;
+  if (totalSeconds < 60) {
+    return `${totalSeconds.toFixed(1)}s`;
+  }
+  const wholeSeconds = Math.round(totalSeconds);
+  const minutes = Math.floor(wholeSeconds / 60);
+  const remainingSeconds = wholeSeconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
 }
 
 export function AgentRunner({
@@ -42,10 +82,15 @@ export function AgentRunner({
   running,
   statusMessage,
   output,
+  episodeMetadata,
+  tokenUsage,
   webSearchMode,
+  webSearchCount,
+  generationDurationMs,
   missingProxyInProd,
   onRun,
   onCancel,
+  onRenderError,
 }: AgentRunnerProps) {
   const showSkeleton = running && !output;
   const isBlocked = running || missingProxyInProd;
@@ -100,36 +145,66 @@ export function AgentRunner({
         <span className={statusMessage ? styles.statusText : undefined}>
           {statusMessage ?? idleStatus}
         </span>
-        <span className={styles.hintBadge}>
-          {getWebSearchBadgeText(webSearchMode)}
-        </span>
+        <div className={styles.statusMeta}>
+          {!running && generationDurationMs !== null ? (
+            <span className={styles.usageBadge}>
+              Time: {formatDuration(generationDurationMs)}
+            </span>
+          ) : null}
+          {!running && tokenUsage ? (
+            <span className={styles.usageBadge}>
+              {formatTokenUsage(tokenUsage)}
+            </span>
+          ) : null}
+          <span className={styles.hintBadge}>
+            {getWebSearchBadgeText(webSearchMode, webSearchCount, running)}
+          </span>
+        </div>
       </div>
 
-      <Card as="div">
-        <CardContent>
-          <output
-            className={styles.output}
-            aria-live="polite"
-            aria-busy={showSkeleton || undefined}
-          >
-            {showSkeleton ? (
-              <Flex direction="column" gap={2}>
-                <span className="visually-hidden">
-                  {statusMessage ?? "Generating Trust Report..."}
-                </span>
-                <Skeleton width="92%" />
-                <Skeleton width="100%" />
-                <Skeleton width="84%" />
-                <Skeleton width="76%" />
-              </Flex>
-            ) : output ? (
-              output
-            ) : (
+      {showSkeleton ? (
+        <Card as="div">
+          <CardContent>
+            <Flex
+              direction="column"
+              gap={3}
+              aria-busy="true"
+              aria-live="polite"
+            >
+              <span className="visually-hidden">
+                {statusMessage ?? "Generating Trust Report..."}
+              </span>
+              <Skeleton width="55%" height="1.25rem" />
+              <Skeleton width="92%" />
+              <Skeleton width="100%" />
+              <Skeleton width="84%" />
+              <Skeleton width="40%" height="1.25rem" />
+              <Skeleton width="76%" />
+            </Flex>
+          </CardContent>
+        </Card>
+      ) : output ? (
+        <div
+          className={styles.reportRegion}
+          aria-live="polite"
+          aria-busy={running || undefined}
+        >
+          <TrustReportRenderer
+            response={output}
+            isStreaming={running}
+            metadata={episodeMetadata}
+            onFatalError={onRenderError}
+          />
+        </div>
+      ) : (
+        <Card as="div">
+          <CardContent>
+            <div className={styles.emptyState}>
               <span className={styles.emptyOutput}>No Trust Report yet.</span>
-            )}
-          </output>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </Flex>
   );
 }
