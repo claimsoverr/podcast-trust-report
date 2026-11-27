@@ -1,0 +1,41 @@
+@layer components {
+  .card {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: clamp(var(--space-4), 4vi, var(--space-6));
+  }
+
+  .content {
+    flex: 1 1 auto;
+  }
+
+  .header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-block-end: var(--space-4);
+  }
+
+  .footer {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    margin-block-start: var(--space-5);
+    padding-block-start: var(--space-4);
+    border-block-start: 1px solid var(--color-border-subtle);
+
+    @container (inline-size >= 32rem) {
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--space-3);
+    }
+  }
+}

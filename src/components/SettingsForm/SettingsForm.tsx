@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { Card, CardContent, Fieldset, Input } from "@/components/ui";
 import {
   type AISettings,
   API_URL_PLACEHOLDER,
@@ -17,10 +17,6 @@ export function SettingsForm({
   disabled,
   onChange,
 }: SettingsFormProps) {
-  const apiUrlId = useId();
-  const apiKeyId = useId();
-  const modelIdId = useId();
-
   const updateField = (field: keyof AISettings, value: string) => {
     onChange({
       ...settings,
@@ -29,46 +25,38 @@ export function SettingsForm({
   };
 
   return (
-    <fieldset className={styles.fieldset} disabled={disabled}>
-      <legend className={styles.legend}>AI Settings</legend>
+    <Card>
+      <CardContent>
+        <Fieldset disabled={disabled}>
+          <legend className={styles.legend}>AI Settings</legend>
 
-      <div className={styles.fields}>
-        <label className={styles.field} htmlFor={apiUrlId}>
-          <span className={styles.label}>API URL</span>
-          <input
-            id={apiUrlId}
-            className={styles.input}
-            type="url"
-            placeholder={API_URL_PLACEHOLDER}
-            value={settings.apiUrl}
-            onChange={(e) => updateField("apiUrl", e.target.value)}
-          />
-        </label>
+          <div className={styles.fields}>
+            <Input
+              label="API URL"
+              type="url"
+              placeholder={API_URL_PLACEHOLDER}
+              value={settings.apiUrl}
+              onChange={(e) => updateField("apiUrl", e.target.value)}
+            />
 
-        <label className={styles.field} htmlFor={modelIdId}>
-          <span className={styles.label}>Model ID</span>
-          <input
-            id={modelIdId}
-            className={styles.input}
-            type="text"
-            placeholder={MODEL_ID_PLACEHOLDER}
-            value={settings.modelId}
-            onChange={(e) => updateField("modelId", e.target.value)}
-          />
-        </label>
+            <Input
+              label="Model ID"
+              type="text"
+              placeholder={MODEL_ID_PLACEHOLDER}
+              value={settings.modelId}
+              onChange={(e) => updateField("modelId", e.target.value)}
+            />
 
-        <label className={styles.field} htmlFor={apiKeyId}>
-          <span className={styles.label}>API Key (optional for local)</span>
-          <input
-            id={apiKeyId}
-            className={styles.input}
-            type="password"
-            placeholder="sk-..."
-            value={settings.apiKey}
-            onChange={(e) => updateField("apiKey", e.target.value)}
-          />
-        </label>
-      </div>
-    </fieldset>
+            <Input
+              label="API Key (optional for local)"
+              type="password"
+              placeholder="sk-..."
+              value={settings.apiKey}
+              onChange={(e) => updateField("apiKey", e.target.value)}
+            />
+          </div>
+        </Fieldset>
+      </CardContent>
+    </Card>
   );
 }

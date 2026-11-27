@@ -1,0 +1,19 @@
+@layer components {
+  .wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    inline-size: 100%;
+  }
+
+  .hasEndAdornment {
+    padding-inline-end: var(--space-10);
+  }
+
+  .endAdornment {
+    position: absolute;
+    inset-inline-end: var(--space-2);
+    display: flex;
+    align-items: center;
+  }
+}

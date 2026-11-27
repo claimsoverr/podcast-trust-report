@@ -1,0 +1,42 @@
+@layer components {
+  .control {
+    font: inherit;
+    font-size: max(var(--text-md), 1em);
+    line-height: 1.4;
+    padding-block: var(--space-2);
+    padding-inline: var(--space-3);
+    min-block-size: 2.75rem;
+    inline-size: 100%;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface-subtle);
+    color: var(--color-text);
+    transition: border-color var(--duration-fast) var(--easing-standard);
+
+    @media (pointer: coarse) {
+      min-block-size: 3.125rem;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+
+    &::placeholder {
+      color: var(--color-text-muted);
+    }
+
+    &:is([aria-invalid="true"], :user-invalid) {
+      border-color: var(--color-danger);
+    }
+
+    &:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+  }
+
+  .textarea {
+    min-block-size: 5.5rem;
+    resize: vertical;
+  }
+}

@@ -1,0 +1,21 @@
+@layer components {
+  .spinner {
+    display: inline-block;
+    inline-size: 1.125em;
+    block-size: 1.125em;
+    border: 2px solid currentColor;
+    border-inline-end-color: transparent;
+    border-radius: var(--radius-pill);
+    animation: spin 0.7s linear infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}

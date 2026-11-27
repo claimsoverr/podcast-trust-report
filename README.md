@@ -1,6 +1,6 @@
 # Podcast Trust Report
 
-A client-side tool that turns any YouTube podcast link into an interactive trustworthiness report.
+A privacy-first tool that turns any YouTube podcast link into an interactive trustworthiness report.
 
 ## How It Works
 

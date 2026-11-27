@@ -10,8 +10,8 @@ For product scope and features, see [README.md](README.md).
 
 ## Frontend Conventions
 
-- **Vanilla modern HTML/CSS (Baseline 2026)** — Prefer native HTML primitives (`<dialog>`, `popover`, semantic elements) and modern CSS (custom properties, `@layer`, `display: grid`, `light-dark()`). Avoid CSS frameworks; see [ADR 0002](docs/adr/0002-vanilla-modern-css-and-css-modules.md).
-- **Component-per-folder & CSS Modules** — Place each component in `src/components/<Name>/` with locally scoped `*.module.css` styles.
+- **Vanilla modern HTML/CSS (Baseline 2026)** — Prefer native HTML primitives (`<dialog>`, `popover`, semantic elements) and modern CSS (custom properties, `@layer`, `display: grid`, `@container` queries, fluid `clamp()` sizing, `light-dark()`). Avoid CSS frameworks; see [ADR 0002](docs/adr/0002-vanilla-modern-css-and-css-modules.md).
+- **Component-per-folder & CSS Modules** — Place reusable UI primitives in `src/components/ui/<Name>/` (re-exported from `src/components/ui/index.ts`) and feature components in `src/components/<Name>/`, each with locally scoped `*.module.css` styles. Prefer `Skeleton` for content/report loading states, reserving `Spinner` for inline button loading.
 - **Import aliases** — Use `@/*` (mapped to `src/*`) for cross-directory imports.
 
 ## Visual Design
@@ -20,7 +20,7 @@ For product scope and features, see [README.md](README.md).
 - **Look & feel** — Crisp analytical utility: structured, minimalist tool UI with neutral chrome and tight hierarchy.
 - **Color & theme** — Equal-priority light and dark modes (system default, overridable in `Settings`); neutral layered surfaces, one restrained accent for interactive actions, and semantic status tones reserved strictly for `Trust Report` verdicts, `Trustworthiness Score`, and errors.
 - **Typography** — Native system sans-serif for UI and reading; monospace with tabular numerals for `Chapter` timestamps, `Trustworthiness Score`, and technical fields. No web fonts.
-- **Layout & surfaces** — Centered reading-width column with responsive internal grids, comfortable-compact density, and flat layered surfaces separated by crisp borders (avoid drop shadows and decorative gradients).
+- **Layout & surfaces** — Fluid, mobile-friendly design without viewport width breakpoints (`@media (min-width / max-width)`): adapt using intrinsic CSS Grid/Flexbox (`auto-fit`/`minmax()`), fluid `clamp()` sizing, and `@container` queries, with touch-friendly tap targets (`@media (pointer: coarse)`) and zero horizontal overflow. Scales to a centered reading-width column with comfortable-compact density and flat layered surfaces separated by crisp borders (avoid drop shadows and decorative gradients).
 - **Trust Report & accessibility** — Calm, objective, evidence-first presentation; never convey meaning by color alone (always pair semantic color with explicit labels). Preserve visible keyboard focus and keep motion minimal, respecting `prefers-reduced-motion`.
 
 ## Agent Persona & Workflow
