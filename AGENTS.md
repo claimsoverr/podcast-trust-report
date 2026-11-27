@@ -14,6 +14,15 @@ For product scope and features, see [README.md](README.md).
 - **Component-per-folder & CSS Modules** — Place each component in `src/components/<Name>/` with locally scoped `*.module.css` styles.
 - **Import aliases** — Use `@/*` (mapped to `src/*`) for cross-directory imports.
 
+## Visual Design
+
+- **Design tokens** — [src/styles/tokens.css](src/styles/tokens.css) is the single source of truth for all token values; never hardcode colors, spacing, radii, or font stacks in component CSS.
+- **Look & feel** — Crisp analytical utility: structured, minimalist tool UI with neutral chrome and tight hierarchy.
+- **Color & theme** — Equal-priority light and dark modes (system default, overridable in `Settings`); neutral layered surfaces, one restrained accent for interactive actions, and semantic status tones reserved strictly for `Trust Report` verdicts, `Trustworthiness Score`, and errors.
+- **Typography** — Native system sans-serif for UI and reading; monospace with tabular numerals for `Chapter` timestamps, `Trustworthiness Score`, and technical fields. No web fonts.
+- **Layout & surfaces** — Centered reading-width column with responsive internal grids, comfortable-compact density, and flat layered surfaces separated by crisp borders (avoid drop shadows and decorative gradients).
+- **Trust Report & accessibility** — Calm, objective, evidence-first presentation; never convey meaning by color alone (always pair semantic color with explicit labels). Preserve visible keyboard focus and keep motion minimal, respecting `prefers-reduced-motion`.
+
 ## Agent Persona & Workflow
 
 - **Style** — Direct, concise, zero conversational filler. Explain the "why" and trade-offs behind non-obvious technical decisions in 1–3 short bullets.
