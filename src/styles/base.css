@@ -1,0 +1,26 @@
+@layer reset, base, components;
+
+@layer reset {
+  :where(html, body, h1, h2, h3, p, pre, fieldset) {
+    margin: 0;
+  }
+
+  :where(html, body, main, section, fieldset, input, button, pre) {
+    box-sizing: border-box;
+  }
+
+  :where(input, button) {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+@layer base {
+  body {
+    min-block-size: 100dvb;
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    color: var(--color-text);
+    background-color: var(--color-bg);
+  }
+}

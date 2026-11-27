@@ -18,3 +18,20 @@ A client-side tool that turns any YouTube podcast link into an interactive trust
 ## Privacy
 
 Everything runs in your browser with no backend server. Your API keys and settings stay local and are sent only to the AI provider or local model you configure.
+
+## Tech Stack
+
+- **UI:** React, TypeScript, Vite
+- **AI Agent:** Vercel AI SDK (`ai`, `@ai-sdk/openai-compatible`, `zod`) running client-side
+- **Styling:** Vanilla modern CSS (Baseline 2026) and CSS Modules
+- **Linting:** `oxlint`
+
+## Development
+
+```sh
+npm install
+npm run dev      # Start local dev server
+npm run build    # Type-check and build production bundle
+npm run lint     # Run oxlint
+npm run preview  # Preview production build
+```

@@ -8,6 +8,12 @@ For product scope and features, see [README.md](README.md).
 - **Bring your own AI** — Support user-configured API keys, custom API URLs, and local AI models.
 - **Generated UI** — Render reports using OpenUI.
 
+## Frontend Conventions
+
+- **Vanilla modern HTML/CSS (Baseline 2026)** — Prefer native HTML primitives (`<dialog>`, `popover`, semantic elements) and modern CSS (custom properties, `@layer`, `display: grid`, `light-dark()`). Avoid CSS frameworks; see [ADR 0002](docs/adr/0002-vanilla-modern-css-and-css-modules.md).
+- **Component-per-folder & CSS Modules** — Place each component in `src/components/<Name>/` with locally scoped `*.module.css` styles.
+- **Import aliases** — Use `@/*` (mapped to `src/*`) for cross-directory imports.
+
 ## Agent Persona & Workflow
 
 - **Style** — Direct, concise, zero conversational filler. Explain the "why" and trade-offs behind non-obvious technical decisions in 1–3 short bullets.
