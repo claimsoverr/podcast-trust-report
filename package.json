@@ -2,13 +2,13 @@
   "name": "podcast-trust-report",
   "version": "1.0.0",
   "description": "",
-  "homepage": "https://github.com/rumenpetrov/podcast-trust-report#readme",
+  "homepage": "https://github.com/claimsoverr/podcast-trust-report#readme",
   "bugs": {
-    "url": "https://github.com/rumenpetrov/podcast-trust-report/issues"
+    "url": "https://github.com/claimsoverr/podcast-trust-report/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rumenpetrov/podcast-trust-report.git"
+    "url": "git+https://github.com/claimsoverr/podcast-trust-report.git"
   },
   "license": "MIT",
   "author": "Rumen Petrov",
