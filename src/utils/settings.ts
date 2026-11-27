@@ -1,8 +1,16 @@
+import type { WebSearchMode } from "@/agent";
 import {
   AI_PROVIDERS,
   type AIProvider,
   isValidAIProvider,
 } from "@/utils/providers";
+
+export interface AIConnectionTools {
+  webSearch: {
+    enabled: boolean;
+    exaApiKey: string;
+  };
+}
 
 export interface AIConnectionInput {
   name: string;
@@ -10,10 +18,39 @@ export interface AIConnectionInput {
   apiUrl: string;
   apiKey: string;
   modelId: string;
+  tools: AIConnectionTools;
 }
 
 export interface AIConnection extends AIConnectionInput {
   id: string;
+}
+
+export function createDefaultConnectionTools(
+  provider: AIProvider,
+): AIConnectionTools {
+  const isCloud = AI_PROVIDERS[provider].group === "cloud";
+  return {
+    webSearch: {
+      enabled: isCloud,
+      exaApiKey: "",
+    },
+  };
+}
+
+export function getConnectionWebSearchMode(
+  connection: AIConnection,
+): WebSearchMode {
+  if (!connection.tools.webSearch.enabled) {
+    return "none";
+  }
+
+  if (AI_PROVIDERS[connection.provider].group === "cloud") {
+    return "native";
+  }
+
+  return connection.tools.webSearch.exaApiKey.trim().length > 0
+    ? "exa"
+    : "none";
 }
 
 export interface AISettings {
@@ -57,6 +94,7 @@ export function normalizeConnectionInput(
     ? input.provider
     : "openai-compatible";
   const config = AI_PROVIDERS[provider];
+  const isLocal = config.group === "local";
 
   return {
     name: input.name.trim(),
@@ -64,6 +102,12 @@ export function normalizeConnectionInput(
     apiUrl: normalizeProviderUrl(provider, input.apiUrl),
     apiKey: config.supportsApiKey ? input.apiKey.trim() : "",
     modelId: normalizeModelId(provider, input.modelId),
+    tools: {
+      webSearch: {
+        enabled: Boolean(input.tools.webSearch.enabled),
+        exaApiKey: isLocal ? input.tools.webSearch.exaApiKey.trim() : "",
+      },
+    },
   };
 }
 
@@ -93,12 +137,36 @@ function parseStoredConnection(entry: unknown): AIConnection | null {
     return null;
   }
 
+  const defaultTools = createDefaultConnectionTools(record.provider);
+  const rawTools =
+    typeof record.tools === "object" && record.tools !== null
+      ? (record.tools as Partial<AIConnectionTools>)
+      : undefined;
+  const rawWebSearch =
+    rawTools &&
+    typeof rawTools.webSearch === "object" &&
+    rawTools.webSearch !== null
+      ? (rawTools.webSearch as Partial<AIConnectionTools["webSearch"]>)
+      : undefined;
+
   const normalized = normalizeConnectionInput({
     name: record.name,
     provider: record.provider,
     apiUrl: typeof record.apiUrl === "string" ? record.apiUrl : "",
     apiKey: typeof record.apiKey === "string" ? record.apiKey : "",
     modelId: record.modelId,
+    tools: {
+      webSearch: {
+        enabled:
+          typeof rawWebSearch?.enabled === "boolean"
+            ? rawWebSearch.enabled
+            : defaultTools.webSearch.enabled,
+        exaApiKey:
+          typeof rawWebSearch?.exaApiKey === "string"
+            ? rawWebSearch.exaApiKey
+            : defaultTools.webSearch.exaApiKey,
+      },
+    },
   });
 
   if (!normalized.name || !normalized.modelId) {
@@ -749,6 +817,18 @@ export async function validateAIConnection(
     return {
       valid: false,
       error: "Model ID is required.",
+    };
+  }
+
+  if (
+    config.group === "local" &&
+    normalized.tools.webSearch.enabled &&
+    !normalized.tools.webSearch.exaApiKey
+  ) {
+    return {
+      valid: false,
+      error:
+        "Exa API Key is required when Web Search is enabled for local models.",
     };
   }
 

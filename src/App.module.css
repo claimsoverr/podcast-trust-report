@@ -47,7 +47,51 @@
     background-color: var(--color-surface);
   }
 
+  .content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    min-block-size: 0;
+  }
+
+  .proxyAlertBody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .proxyAlertTitle {
+    font-weight: var(--weight-semibold);
+  }
+
+  .proxyAlertList {
+    margin: 0;
+    padding-inline-start: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .proxyAlertActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin-block-start: var(--space-1);
+  }
+
+  .repoLink {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: inherit;
+    font-weight: var(--weight-medium);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
   .setupContainer {
+    flex: 1 1 auto;
     display: grid;
     place-items: center;
   }

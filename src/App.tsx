@@ -1,35 +1,69 @@
-import { useState } from "react";
-import { Settings } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ExternalLink, Settings } from "lucide-react";
+import { extractVideoId, runTrustReport } from "@/agent";
 import { AgentRunner } from "@/components/AgentRunner";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
-import { Button, Card, CardContent, Flex } from "@/components/ui";
+import { Alert, Button, Card, CardContent, Flex } from "@/components/ui";
 import { useNotifications } from "@/notifications";
-import { runSampleAgent } from "@/utils/agent";
+import {
+  type AIGeneralSettings,
+  loadAIGeneralSettings,
+  resolveEffectiveCorsProxyUrl,
+  saveAIGeneralSettings,
+} from "@/utils/aiGeneralSettings";
 import {
   addConnection,
   type AIConnectionInput,
   type AISettings,
   deleteConnection,
   getActiveConnection,
+  getConnectionWebSearchMode,
   loadAISettings,
   saveAISettings,
   setActiveConnection,
   updateConnection,
+  validateAIConnection,
 } from "@/utils/settings";
 import styles from "./App.module.css";
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
 
 export function App() {
   const { notifyError, notifyInfo, notifySuccess } = useNotifications();
   const [settings, setSettings] = useState<AISettings>(() => loadAISettings());
+  const [generalSettings, setGeneralSettings] = useState<AIGeneralSettings>(
+    () => loadAIGeneralSettings(),
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [episodeUrl, setEpisodeUrl] = useState("");
   const [running, setRunning] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [output, setOutput] = useState("");
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   const activeConnection = getActiveConnection(settings);
+  const effectiveProxy = resolveEffectiveCorsProxyUrl(generalSettings);
+  const webSearchMode = activeConnection
+    ? getConnectionWebSearchMode(activeConnection)
+    : "none";
 
   const commitSettings = (nextSettings: AISettings) => {
     saveAISettings(nextSettings);
     setSettings(nextSettings);
+  };
+
+  const handleSaveGeneralSettings = (nextGeneralSettings: AIGeneralSettings) => {
+    saveAIGeneralSettings(nextGeneralSettings);
+    setGeneralSettings(nextGeneralSettings);
+    notifySuccess("AI General settings saved.");
   };
 
   const handleSelectActive = (id: string) => {
@@ -62,6 +96,7 @@ export function App() {
     commitSettings(nextSettings);
     if (nextSettings.connections.length === 0) {
       setOutput("");
+      setStatusMessage(null);
     }
     notifyInfo(
       target
@@ -70,21 +105,88 @@ export function App() {
     );
   };
 
+  const handleCancel = () => {
+    abortControllerRef.current?.abort();
+  };
+
   const handleRun = async () => {
     if (!activeConnection || running) {
       return;
     }
 
+    if (!extractVideoId(episodeUrl)) {
+      notifyError(
+        "Please enter a valid YouTube Episode URL or 11-character video ID.",
+      );
+      return;
+    }
+
+    if (!effectiveProxy.url) {
+      notifyError(
+        "A CORS Proxy URL is required to fetch Episode data. Configure it in AI Settings → General.",
+        {
+          action: {
+            label: "Open Settings",
+            onClick: () => setIsSettingsOpen(true),
+          },
+        },
+      );
+      return;
+    }
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setRunning(true);
     setOutput("");
+    setStatusMessage("Validating AI Connection...");
 
     try {
-      await runSampleAgent(activeConnection, setOutput);
+      const validation = await validateAIConnection(
+        activeConnection,
+        controller.signal,
+      );
+      if (controller.signal.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+
+      await runTrustReport({
+        episodeUrl,
+        model: {
+          provider: activeConnection.provider,
+          apiUrl: activeConnection.apiUrl,
+          apiKey: activeConnection.apiKey,
+          modelId: activeConnection.modelId,
+        },
+        tools: {
+          corsProxyUrl: effectiveProxy.url,
+          webSearch: activeConnection.tools.webSearch,
+        },
+        signal: controller.signal,
+        onStatus: (status) => {
+          setStatusMessage(status.message);
+        },
+        onText: setOutput,
+      });
+
+      setStatusMessage(null);
+      notifySuccess("Trust Report ready.");
     } catch (err) {
+      setStatusMessage(null);
+
+      if (controller.signal.aborted || isAbortError(err)) {
+        notifyInfo("Trust Report generation cancelled.");
+        return;
+      }
+
       const message =
         err instanceof Error
           ? err.message
-          : "An unexpected error occurred while running the agent.";
+          : "An unexpected error occurred while generating the Trust Report.";
 
       notifyError(message, {
         action: {
@@ -93,6 +195,9 @@ export function App() {
         },
       });
     } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
       setRunning(false);
     }
   };
@@ -104,7 +209,10 @@ export function App() {
           <h1 className={styles.title}>Podcast Trust Report</h1>
           <div className={styles.headerActions}>
             {activeConnection ? (
-              <span className={styles.activeConnection} title={activeConnection.name}>
+              <span
+                className={styles.activeConnection}
+                title={activeConnection.name}
+              >
                 {activeConnection.name}
               </span>
             ) : null}
@@ -120,40 +228,101 @@ export function App() {
           </div>
         </header>
 
-        {activeConnection ? (
-          <AgentRunner running={running} output={output} onRun={handleRun} />
-        ) : (
-          <div className={styles.setupContainer}>
-            <Card className={styles.setupCard}>
-              <CardContent>
-                <Flex direction="column" align="center" gap={4}>
-                  <h2 className={styles.setupTitle}>Configure AI Settings</h2>
-                  <p className={styles.setupDescription}>
-                    Add an AI Connection in Settings to start generating Trust
-                    Reports.
-                  </p>
+        <div className={styles.content}>
+          {!effectiveProxy.url ? (
+            <Alert variant="warning">
+              <div className={styles.proxyAlertBody}>
+                <p className={styles.proxyAlertTitle}>
+                  CORS proxy required on hosted builds
+                </p>
+                <p>
+                  This app runs strictly in your browser with no backend server.
+                  Browsers block direct requests to YouTube (CORS), so Episode
+                  metadata and Transcripts cannot be fetched here without a
+                  proxy—and no default proxy is hosted yet.
+                </p>
+                <ul className={styles.proxyAlertList}>
+                  <li>
+                    Configure your own CORS Proxy URL in{" "}
+                    <strong>AI Settings → General</strong>.
+                  </li>
+                  <li>
+                    Or run the project locally (
+                    <code>npm install &amp;&amp; npm run dev</code>), which
+                    includes a built-in dev proxy.
+                  </li>
+                </ul>
+                <div className={styles.proxyAlertActions}>
                   <Button
-                    variant="primary"
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={running}
                     onClick={() => setIsSettingsOpen(true)}
                   >
-                    Open Settings
+                    Configure proxy
                   </Button>
-                </Flex>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                  <a
+                    href="https://github.com/claimsoverr/podcast-trust-report"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.repoLink}
+                  >
+                    Run locally on GitHub
+                    <ExternalLink aria-hidden="true" size={14} />
+                  </a>
+                </div>
+              </div>
+            </Alert>
+          ) : null}
+
+          {activeConnection ? (
+            <AgentRunner
+              episodeUrl={episodeUrl}
+              onEpisodeUrlChange={setEpisodeUrl}
+              running={running}
+              statusMessage={statusMessage}
+              output={output}
+              webSearchMode={webSearchMode}
+              missingProxyInProd={!effectiveProxy.url}
+              onRun={handleRun}
+              onCancel={handleCancel}
+            />
+          ) : (
+            <div className={styles.setupContainer}>
+              <Card className={styles.setupCard}>
+                <CardContent>
+                  <Flex direction="column" align="center" gap={4}>
+                    <h2 className={styles.setupTitle}>Configure AI Settings</h2>
+                    <p className={styles.setupDescription}>
+                      Add an AI Connection in Settings to start generating Trust
+                      Reports.
+                    </p>
+                    <Button
+                      variant="primary"
+                      onClick={() => setIsSettingsOpen(true)}
+                    >
+                      Open Settings
+                    </Button>
+                  </Flex>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       </main>
 
       <SettingsDrawer
         open={isSettingsOpen}
         settings={settings}
+        generalSettings={generalSettings}
         disabled={running}
         onClose={() => setIsSettingsOpen(false)}
         onSelectActive={handleSelectActive}
         onAddConnection={handleAddConnection}
         onUpdateConnection={handleUpdateConnection}
         onDeleteConnection={handleDeleteConnection}
+        onSaveGeneralSettings={handleSaveGeneralSettings}
       />
     </>
   );

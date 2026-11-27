@@ -3,7 +3,11 @@ import { CheckCircle2, Pencil, Plus, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useNotifications } from "@/notifications";
 import { AI_PROVIDERS } from "@/utils/providers";
-import { type AIConnection, validateAIConnection } from "@/utils/settings";
+import {
+  type AIConnection,
+  getConnectionWebSearchMode,
+  validateAIConnection,
+} from "@/utils/settings";
 import styles from "./ConnectionList.module.css";
 
 interface ConnectionListProps {
@@ -153,6 +157,13 @@ export function ConnectionList({
             providerConfig.group === "local" ? "Local" : "Cloud";
           const status =
             testStatus?.id === connection.id ? testStatus : null;
+          const webSearchMode = getConnectionWebSearchMode(connection);
+          const webSearchLabel =
+            webSearchMode === "native"
+              ? "Built-in"
+              : webSearchMode === "exa"
+                ? "Exa"
+                : "Off";
 
           return (
             <li
@@ -197,7 +208,8 @@ export function ConnectionList({
 
                 <div className={styles.meta}>
                   <span className={styles.provider}>
-                    {providerConfig.label} · {groupLabel}
+                    {providerConfig.label} · {groupLabel} · Web search:{" "}
+                    {webSearchLabel}
                   </span>
                   <span className={styles.model}>{connection.modelId}</span>
                   {connection.apiUrl ? (

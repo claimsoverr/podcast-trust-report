@@ -1,11 +1,7 @@
+import type { AIProvider } from "@/agent";
 import type { SelectOptionGroup } from "@/components/ui";
 
-export type AIProvider =
-  | "openai-compatible"
-  | "ollama"
-  | "google"
-  | "anthropic"
-  | "openai";
+export type { AIProvider };
 
 export type AIProviderGroup = "local" | "cloud";
 

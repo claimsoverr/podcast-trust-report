@@ -12,6 +12,7 @@ import {
 import {
   type AIConnection,
   type AIConnectionInput,
+  createDefaultConnectionTools,
   fetchAvailableModels,
   isValidHttpUrl,
   normalizeConnectionInput,
@@ -55,6 +56,8 @@ export function SettingsForm({
 }: SettingsFormProps) {
   const { notifyError } = useNotifications();
   const initialProvider = initialConnection?.provider ?? DEFAULT_PROVIDER;
+  const initialTools =
+    initialConnection?.tools ?? createDefaultConnectionTools(initialProvider);
 
   const [name, setName] = useState(initialConnection?.name ?? "");
   const [provider, setProvider] = useState<AIProvider>(initialProvider);
@@ -65,6 +68,10 @@ export function SettingsForm({
   );
   const [apiKey, setApiKey] = useState(initialConnection?.apiKey ?? "");
   const [modelId, setModelId] = useState(initialConnection?.modelId ?? "");
+  const [webSearchEnabled, setWebSearchEnabled] = useState(
+    initialTools.webSearch.enabled,
+  );
+  const [exaApiKey, setExaApiKey] = useState(initialTools.webSearch.exaApiKey);
   const [modelCatalog, setModelCatalog] = useState<{
     requestKey: string;
     models: string[];
@@ -137,10 +144,13 @@ export function SettingsForm({
     }
 
     const nextConfig = AI_PROVIDERS[nextValue];
+    const nextTools = createDefaultConnectionTools(nextValue);
     setProvider(nextValue);
     setApiUrl(nextConfig.defaultUrl);
     setApiKey("");
     setModelId("");
+    setWebSearchEnabled(nextTools.webSearch.enabled);
+    setExaApiKey(nextTools.webSearch.exaApiKey);
     setModelCatalog({ requestKey: "", models: [] });
     setRefreshNonce(0);
   };
@@ -174,6 +184,12 @@ export function SettingsForm({
       apiUrl,
       apiKey,
       modelId,
+      tools: {
+        webSearch: {
+          enabled: webSearchEnabled,
+          exaApiKey,
+        },
+      },
     });
 
     if (!normalized.name) {
@@ -201,6 +217,17 @@ export function SettingsForm({
 
     if (!normalized.modelId) {
       notifyError("Model ID is required.");
+      return;
+    }
+
+    if (
+      providerConfig.group === "local" &&
+      normalized.tools.webSearch.enabled &&
+      !normalized.tools.webSearch.exaApiKey
+    ) {
+      notifyError(
+        "Exa API Key is required when Web Search is enabled for local models.",
+      );
       return;
     }
 
@@ -500,6 +527,58 @@ export function SettingsForm({
               </div>
             ) : null}
           </div>
+
+          <section className={styles.toolsSection} aria-label="Connection tools">
+            <h3 className={styles.toolsHeading}>Tools</h3>
+            <ul className={styles.toolsList}>
+              <li className={styles.toolItem}>
+                <label className={styles.toolToggle}>
+                  <input
+                    type="checkbox"
+                    className={styles.toolCheckbox}
+                    checked={webSearchEnabled}
+                    onChange={(event) =>
+                      setWebSearchEnabled(event.target.checked)
+                    }
+                  />
+                  <span className={styles.toolMeta}>
+                    <span className={styles.toolName}>Web Search</span>
+                    <span className={styles.toolDescription}>
+                      {providerConfig.group === "cloud"
+                        ? `Uses ${providerConfig.label}'s built-in web search (no extra key required).`
+                        : "Optional. Uses Exa to fact-check Claims and research Guests."}
+                    </span>
+                  </span>
+                </label>
+
+                {providerConfig.group === "local" && webSearchEnabled ? (
+                  <Input
+                    label="Exa API Key"
+                    type="password"
+                    required
+                    autoComplete="off"
+                    placeholder="exa-..."
+                    hint={
+                      <>
+                        Stored only in this browser.{" "}
+                        <a
+                          href="https://dashboard.exa.ai/api-keys"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={styles.externalLink}
+                        >
+                          Get an Exa key
+                          <ExternalLink aria-hidden="true" size={12} />
+                        </a>
+                      </>
+                    }
+                    value={exaApiKey}
+                    onChange={(event) => setExaApiKey(event.target.value)}
+                  />
+                ) : null}
+              </li>
+            </ul>
+          </section>
         </div>
       </Fieldset>
 
