@@ -1,9 +1,4 @@
 @layer components {
-  .hint {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-  }
-
   .output {
     display: block;
     min-block-size: 8rem;

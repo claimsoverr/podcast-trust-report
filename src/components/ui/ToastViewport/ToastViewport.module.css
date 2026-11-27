@@ -1,0 +1,123 @@
+@layer components {
+  .region[popover] {
+    position: fixed;
+    inset-block-start: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+    inset-block-end: auto;
+    inset-inline: var(--space-3);
+    inline-size: min(28rem, calc(100vi - var(--space-6)));
+    max-inline-size: min(28rem, calc(100vi - var(--space-6)));
+    margin-inline: auto;
+    margin-block: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    overflow: visible;
+    pointer-events: none;
+
+    &:popover-open {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+  }
+
+  .toast {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    inline-size: 100%;
+    pointer-events: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    padding-block: var(--space-2);
+    padding-inline: var(--space-3);
+
+    &.success {
+      border-inline-start: 4px solid var(--color-success);
+
+      & .icon {
+        color: var(--color-success);
+      }
+    }
+
+    &.error {
+      border-inline-start: 4px solid var(--color-danger);
+
+      & .icon {
+        color: var(--color-danger);
+      }
+    }
+
+    &.info {
+      border-inline-start: 4px solid var(--color-info);
+
+      & .icon {
+        color: var(--color-info);
+      }
+    }
+  }
+
+  .body {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    flex: 1 1 auto;
+    min-inline-size: 0;
+  }
+
+  .content {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    font-size: var(--text-sm);
+    line-height: 1.4;
+  }
+
+  .icon {
+    flex-shrink: 0;
+    margin-block-start: 0.125rem;
+  }
+
+  .message {
+    overflow-wrap: anywhere;
+  }
+
+  .close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    inline-size: 2rem;
+    block-size: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--easing-standard),
+      color var(--duration-fast) var(--easing-standard);
+
+    @media (pointer: coarse) {
+      inline-size: 2.75rem;
+      block-size: 2.75rem;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+
+    &:hover {
+      background-color: var(--color-surface-subtle);
+      color: var(--color-text);
+    }
+  }
+}

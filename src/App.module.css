@@ -2,8 +2,9 @@
   .page {
     display: grid;
     grid-template-columns: minmax(0, var(--container-max));
+    grid-template-rows: auto 1fr;
     justify-content: center;
-    align-content: start;
+    align-content: stretch;
     gap: var(--space-6);
     min-block-size: 100dvb;
     padding-block: var(--space-6);
@@ -11,6 +12,11 @@
   }
 
   .header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
     padding-block-end: var(--space-3);
     border-block-end: 1px solid var(--color-border);
   }
@@ -18,5 +24,25 @@
   .title {
     font-size: 1.25rem;
     font-weight: 700;
+  }
+
+  .setupContainer {
+    display: grid;
+    place-items: center;
+  }
+
+  .setupCard {
+    inline-size: min(28rem, 100%);
+    text-align: center;
+  }
+
+  .setupTitle {
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+  }
+
+  .setupDescription {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
   }
 }

@@ -1,49 +1,27 @@
-import {
-  Alert,
-  Button,
-  Card,
-  CardContent,
-  Flex,
-  Skeleton,
-} from "@/components/ui";
+import { Button, Card, CardContent, Flex, Skeleton } from "@/components/ui";
 import styles from "./AgentRunner.module.css";
 
 interface AgentRunnerProps {
-  configured: boolean;
   running: boolean;
   output: string;
-  error: string | null;
   onRun: () => void;
 }
 
-export function AgentRunner({
-  configured,
-  running,
-  output,
-  error,
-  onRun,
-}: AgentRunnerProps) {
+export function AgentRunner({ running, output, onRun }: AgentRunnerProps) {
   const showSkeleton = running && !output;
 
   return (
     <Flex as="section" direction="column" gap={4} aria-label="Agent Runner">
-      <Flex align="center" gap={3} wrap>
+      <div>
         <Button
           variant="primary"
           isLoading={running}
-          disabled={!configured || running}
+          disabled={running}
           onClick={onRun}
         >
           {running ? "Running..." : "Run"}
         </Button>
-        {!configured ? (
-          <span className={styles.hint}>
-            Enter API URL and Model ID above to enable.
-          </span>
-        ) : null}
-      </Flex>
-
-      {error ? <Alert variant="danger">{error}</Alert> : null}
+      </div>
 
       <Card as="div">
         <CardContent>

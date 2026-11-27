@@ -11,7 +11,7 @@
     margin: 0;
   }
 
-  :where(input, button) {
+  :where(input, button, select) {
     font: inherit;
     color: inherit;
   }

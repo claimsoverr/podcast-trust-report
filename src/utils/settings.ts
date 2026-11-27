@@ -1,4 +1,7 @@
+export type AIProvider = "openai-compatible" | "google";
+
 export interface AISettings {
+  provider: AIProvider;
   apiUrl: string;
   apiKey: string;
   modelId: string;
@@ -9,11 +12,27 @@ const STORAGE_KEY = "podcast-trust-report:ai-settings";
 export const API_URL_PLACEHOLDER = "http://localhost:1235/v1";
 export const MODEL_ID_PLACEHOLDER = "google/gemma-4-e2b";
 
+export const SUGGESTED_API_URLS = [
+  "http://localhost:1234/v1",
+  "http://localhost:1235/v1",
+] as const;
+
 export const DEFAULT_AI_SETTINGS: AISettings = {
+  provider: "openai-compatible",
   apiUrl: "",
   apiKey: "",
   modelId: "",
 };
+
+export function normalizeAISettings(settings: AISettings): AISettings {
+  return {
+    provider:
+      settings.provider === "google" ? "google" : "openai-compatible",
+    apiUrl: settings.apiUrl.trim().replace(/\/+$/, ""),
+    apiKey: settings.apiKey.trim(),
+    modelId: settings.modelId.trim(),
+  };
+}
 
 export function loadAISettings(): AISettings {
   try {
@@ -24,6 +43,8 @@ export function loadAISettings(): AISettings {
 
     const parsed = JSON.parse(raw) as Partial<AISettings>;
     return {
+      provider:
+        parsed.provider === "google" ? "google" : "openai-compatible",
       apiUrl: typeof parsed.apiUrl === "string" ? parsed.apiUrl : "",
       apiKey: typeof parsed.apiKey === "string" ? parsed.apiKey : "",
       modelId: typeof parsed.modelId === "string" ? parsed.modelId : "",
@@ -34,7 +55,20 @@ export function loadAISettings(): AISettings {
 }
 
 export function saveAISettings(settings: AISettings): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(normalizeAISettings(settings)),
+  );
+}
+
+export function clearAISettings(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+export function hasSavedAISettings(settings: AISettings): boolean {
+  return Boolean(
+    settings.apiUrl.trim() || settings.modelId.trim() || settings.apiKey.trim(),
+  );
 }
 
 export function isAISettingsConfigured(settings: AISettings): boolean {
@@ -47,17 +81,18 @@ interface ModelsResponse {
   }>;
 }
 
-export async function validateAISettings(
-  settings: AISettings,
-): Promise<{ valid: true } | { valid: false; error: string }> {
-  const cleanUrl = settings.apiUrl.trim().replace(/\/+$/, "");
-  const cleanModelId = settings.modelId.trim();
-  const cleanApiKey = settings.apiKey.trim();
+export async function fetchAvailableModels(
+  apiUrl: string,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true; models: string[] } | { ok: false; error: string }> {
+  const cleanUrl = apiUrl.trim().replace(/\/+$/, "");
+  const cleanApiKey = apiKey.trim();
 
-  if (!cleanUrl || !cleanModelId) {
+  if (!cleanUrl) {
     return {
-      valid: false,
-      error: "Both API URL and Model ID are required.",
+      ok: false,
+      error: "API URL is required.",
     };
   }
 
@@ -73,10 +108,14 @@ export async function validateAISettings(
     response = await fetch(`${cleanUrl}/models`, {
       method: "GET",
       headers,
+      signal,
     });
-  } catch {
+  } catch (err) {
+    if (signal?.aborted) {
+      throw err;
+    }
     return {
-      valid: false,
+      ok: false,
       error:
         "Could not connect to the API URL. Make sure the server is running, the URL is correct (e.g. http://localhost:1235/v1), and CORS is enabled.",
     };
@@ -84,7 +123,7 @@ export async function validateAISettings(
 
   if (!response.ok) {
     return {
-      valid: false,
+      ok: false,
       error: `API server responded with status ${response.status} (${response.statusText}) when checking ${cleanUrl}/models.`,
     };
   }
@@ -94,34 +133,69 @@ export async function validateAISettings(
     body = (await response.json()) as ModelsResponse;
   } catch {
     return {
-      valid: false,
+      ok: false,
       error: "Invalid JSON response from /models endpoint. Check your API URL.",
     };
   }
 
   if (!Array.isArray(body.data)) {
     return {
-      valid: false,
+      ok: false,
       error:
         "Unexpected response format from /models endpoint. Make sure the API URL points to an OpenAI-compatible base URL (ending in /v1).",
     };
   }
 
-  const availableModels = body.data
-    .map((item) => item.id)
-    .filter((id): id is string => typeof id === "string");
+  const models = Array.from(
+    new Set(
+      body.data
+        .map((item) => item.id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  );
 
-  if (!availableModels.includes(cleanModelId)) {
+  return { ok: true, models };
+}
+
+export async function validateAISettings(
+  settings: AISettings,
+  signal?: AbortSignal,
+): Promise<
+  { valid: true; models: string[] } | { valid: false; error: string; models?: string[] }
+> {
+  const {
+    apiUrl: cleanUrl,
+    modelId: cleanModelId,
+    apiKey: cleanApiKey,
+  } = normalizeAISettings(settings);
+
+  if (!cleanUrl || !cleanModelId) {
+    return {
+      valid: false,
+      error: "Both API URL and Model ID are required.",
+    };
+  }
+
+  const result = await fetchAvailableModels(cleanUrl, cleanApiKey, signal);
+  if (!result.ok) {
+    return {
+      valid: false,
+      error: result.error,
+    };
+  }
+
+  if (!result.models.includes(cleanModelId)) {
     const availableHint =
-      availableModels.length > 0
-        ? ` Available models: ${availableModels.join(", ")}`
+      result.models.length > 0
+        ? ` Available models: ${result.models.join(", ")}`
         : " No models are currently loaded on the server.";
 
     return {
       valid: false,
       error: `Model "${cleanModelId}" was not found on the server.${availableHint}`,
+      models: result.models,
     };
   }
 
-  return { valid: true };
+  return { valid: true, models: result.models };
 }
