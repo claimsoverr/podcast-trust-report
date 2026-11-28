@@ -1,15 +1,16 @@
 import { defineComponent } from "@openuidev/react-lang";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Play } from "lucide-react";
 import { z } from "zod";
 import { Badge, type BadgeTone, Disclosure } from "@/components/ui";
 import {
   buildYouTubeTimestampUrl,
   formatUrlHostname,
+  parseTimestampToSeconds,
   sanitizeHttpUrl,
 } from "../utils";
 import styles from "./ClaimCard.module.css";
 import { useClaimFilter } from "./ClaimFilterContext";
-import { useEpisodeMetadata } from "./EpisodeMetadataContext";
+import { useEpisodeMetadata, useSeekTimestamp } from "./EpisodeMetadataContext";
 import sharedStyles from "./ReportPrimitives.module.css";
 
 export const CLAIM_VERDICTS = [
@@ -112,6 +113,7 @@ type ClaimCardProps = z.infer<typeof claimCardPropsSchema>;
 function ClaimCardView(props: ClaimCardProps) {
   const { activeVerdict } = useClaimFilter();
   const metadata = useEpisodeMetadata();
+  const onSeekTimestamp = useSeekTimestamp();
   const verdict = normalizeVerdict(props.verdict);
 
   if (activeVerdict !== null && activeVerdict !== verdict) {
@@ -119,6 +121,7 @@ function ClaimCardView(props: ClaimCardProps) {
   }
 
   const badgeTone = getVerdictBadgeTone(verdict);
+  const seconds = parseTimestampToSeconds(props.timestamp);
   const safeTimestampUrl = buildYouTubeTimestampUrl(
     metadata?.videoId,
     props.timestamp,
@@ -136,7 +139,17 @@ function ClaimCardView(props: ClaimCardProps) {
         <div className={styles.meta}>
           <Badge tone={badgeTone}>{verdict}</Badge>
           {props.timestamp ? (
-            safeTimestampUrl ? (
+            onSeekTimestamp && seconds !== null ? (
+              <button
+                type="button"
+                className={sharedStyles.timestampButton}
+                onClick={() => onSeekTimestamp(seconds)}
+                aria-label={`Jump video to ${props.timestamp}`}
+              >
+                <Play aria-hidden="true" size={12} />
+                {props.timestamp}
+              </button>
+            ) : safeTimestampUrl ? (
               <a
                 href={safeTimestampUrl}
                 target="_blank"

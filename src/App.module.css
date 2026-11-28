@@ -5,10 +5,14 @@
     grid-template-rows: auto 1fr;
     justify-content: center;
     align-content: stretch;
-    gap: var(--space-6);
+    gap: var(--space-8);
     min-block-size: 100dvb;
     padding-block: var(--space-6);
     padding-inline: var(--space-4);
+  }
+
+  .pageWide {
+    grid-template-columns: minmax(0, var(--container-wide));
   }
 
   .header {

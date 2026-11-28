@@ -67,4 +67,5 @@
   --easing-standard: cubic-bezier(0.2, 0, 0, 1);
 
   --container-max: 48rem;
+  --container-wide: 76rem;
 }

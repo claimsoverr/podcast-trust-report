@@ -6,7 +6,10 @@ import {
 } from "@openuidev/react-lang";
 import type { EpisodeMetadata } from "@/agent";
 import { Alert, Card, CardContent, Flex, Skeleton } from "@/components/ui";
-import { EpisodeMetadataProvider } from "./components/EpisodeMetadataContext";
+import {
+  EpisodeMetadataProvider,
+  SeekTimestampProvider,
+} from "./components/EpisodeMetadataContext";
 import { trustReportLibrary } from "./library";
 import styles from "./TrustReportRenderer.module.css";
 import { normalizeOpenUiResponse } from "./utils";
@@ -15,6 +18,7 @@ interface TrustReportRendererProps {
   response: string;
   isStreaming: boolean;
   metadata?: EpisodeMetadata | null;
+  onSeekTimestamp?: (seconds: number) => void;
   onFatalError?: (message: string) => void;
 }
 
@@ -91,6 +95,7 @@ export function TrustReportRenderer({
   response,
   isStreaming,
   metadata = null,
+  onSeekTimestamp,
   onFatalError,
 }: TrustReportRendererProps) {
   const [parseState, setParseState] = useState<{
@@ -154,52 +159,54 @@ export function TrustReportRenderer({
     effectiveErrors.length > 0;
 
   return (
-    <EpisodeMetadataProvider value={metadata}>
-      <OpenUIErrorBoundary
-        onFatalError={onFatalError}
-        onCatchError={handleCatchError}
-        fallback={
-          <RawFallbackView response={response} errorDetails={errorDetails} />
-        }
-      >
-        <div className={styles.rendererRoot}>
-          {showPartialWarning ? (
-            <Alert variant="warning">
-              <div>
-                <strong>
-                  Trust Report rendered with OpenUI validation warnings.
-                </strong>
-                <ul className={styles.errorList}>
-                  {errorDetails.slice(0, 3).map((detail, index) => (
-                    <li key={`${detail}-${index}`}>{detail}</li>
-                  ))}
-                </ul>
-              </div>
-            </Alert>
-          ) : null}
+    <SeekTimestampProvider value={onSeekTimestamp ?? null}>
+      <EpisodeMetadataProvider value={metadata}>
+        <OpenUIErrorBoundary
+          onFatalError={onFatalError}
+          onCatchError={handleCatchError}
+          fallback={
+            <RawFallbackView response={response} errorDetails={errorDetails} />
+          }
+        >
+          <div className={styles.rendererRoot}>
+            {showPartialWarning ? (
+              <Alert variant="warning">
+                <div>
+                  <strong>
+                    Trust Report rendered with OpenUI validation warnings.
+                  </strong>
+                  <ul className={styles.errorList}>
+                    {errorDetails.slice(0, 3).map((detail, index) => (
+                      <li key={`${detail}-${index}`}>{detail}</li>
+                    ))}
+                  </ul>
+                </div>
+              </Alert>
+            ) : null}
 
-          {showPendingRootSkeleton ? (
-            <Card as="div">
-              <CardContent>
-                <Flex direction="column" gap={3}>
-                  <Skeleton width="45%" height="1.25rem" />
-                  <Skeleton width="100%" />
-                  <Skeleton width="88%" />
-                  <Skeleton width="72%" />
-                </Flex>
-              </CardContent>
-            </Card>
-          ) : null}
+            {showPendingRootSkeleton ? (
+              <Card as="div">
+                <CardContent>
+                  <Flex direction="column" gap={3}>
+                    <Skeleton width="45%" height="1.25rem" />
+                    <Skeleton width="100%" />
+                    <Skeleton width="88%" />
+                    <Skeleton width="72%" />
+                  </Flex>
+                </CardContent>
+              </Card>
+            ) : null}
 
-          <Renderer
-            library={trustReportLibrary}
-            response={normalized}
-            isStreaming={isStreaming}
-            onParseResult={handleParseResult}
-            onError={handleErrors}
-          />
-        </div>
-      </OpenUIErrorBoundary>
-    </EpisodeMetadataProvider>
+            <Renderer
+              library={trustReportLibrary}
+              response={normalized}
+              isStreaming={isStreaming}
+              onParseResult={handleParseResult}
+              onError={handleErrors}
+            />
+          </div>
+        </OpenUIErrorBoundary>
+      </EpisodeMetadataProvider>
+    </SeekTimestampProvider>
   );
 }

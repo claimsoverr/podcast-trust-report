@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { clsx } from "clsx";
 import { ExternalLink, Settings } from "lucide-react";
 import {
   type EpisodeMetadata,
@@ -71,6 +72,8 @@ export function App() {
   const webSearchMode = activeConnection
     ? getConnectionWebSearchMode(activeConnection)
     : "none";
+  const activeVideoId =
+    extractVideoId(episodeUrl) ?? episodeMetadata?.videoId ?? null;
 
   const commitSettings = (nextSettings: AISettings) => {
     saveAISettings(nextSettings);
@@ -260,7 +263,7 @@ export function App() {
 
   return (
     <>
-      <main className={styles.page}>
+      <main className={clsx(styles.page, activeVideoId && styles.pageWide)}>
         <header className={styles.header}>
           <h1 className={styles.title}>Podcast Trust Report</h1>
           <div className={styles.headerActions}>
@@ -336,6 +339,7 @@ export function App() {
             <AgentRunner
               episodeUrl={episodeUrl}
               onEpisodeUrlChange={setEpisodeUrl}
+              activeVideoId={activeVideoId}
               running={running}
               statusMessage={statusMessage}
               output={output}
@@ -347,6 +351,7 @@ export function App() {
               missingProxyInProd={!effectiveProxy.url}
               onRun={handleRun}
               onCancel={handleCancel}
+              onOpenSettings={() => setIsSettingsOpen(true)}
               onRenderError={handleRenderError}
             />
           ) : (

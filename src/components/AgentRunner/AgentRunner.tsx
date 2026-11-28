@@ -1,4 +1,4 @@
-import type { SubmitEvent } from "react";
+import { type SubmitEvent, useCallback, useRef } from "react";
 import type { EpisodeMetadata, TokenUsage, WebSearchMode } from "@/agent";
 import {
   Button,
@@ -8,12 +8,17 @@ import {
   Input,
   Skeleton,
 } from "@/components/ui";
+import {
+  YouTubePlayer,
+  type YouTubePlayerHandle,
+} from "@/components/YouTubePlayer";
 import { TrustReportRenderer } from "@/openui";
 import styles from "./AgentRunner.module.css";
 
 interface AgentRunnerProps {
   episodeUrl: string;
   onEpisodeUrlChange: (url: string) => void;
+  activeVideoId: string | null;
   running: boolean;
   statusMessage: string | null;
   output: string;
@@ -25,6 +30,7 @@ interface AgentRunnerProps {
   missingProxyInProd: boolean;
   onRun: () => void;
   onCancel: () => void;
+  onOpenSettings: () => void;
   onRenderError?: (message: string) => void;
 }
 
@@ -79,6 +85,7 @@ function formatDuration(durationMs: number): string {
 export function AgentRunner({
   episodeUrl,
   onEpisodeUrlChange,
+  activeVideoId,
   running,
   statusMessage,
   output,
@@ -90,10 +97,16 @@ export function AgentRunner({
   missingProxyInProd,
   onRun,
   onCancel,
+  onOpenSettings,
   onRenderError,
 }: AgentRunnerProps) {
+  const playerRef = useRef<YouTubePlayerHandle | null>(null);
   const showSkeleton = running && !output;
   const isBlocked = running || missingProxyInProd;
+
+  const handleSeekTimestamp = useCallback((seconds: number) => {
+    playerRef.current?.seekTo(seconds);
+  }, []);
 
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -109,102 +122,138 @@ export function AgentRunner({
       ? null
       : "Enter an Episode URL to generate a Trust Report.";
 
+  const reportContent = showSkeleton ? (
+    <Card as="div">
+      <CardContent>
+        <Flex
+          direction="column"
+          gap={3}
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <span className="visually-hidden">
+            {statusMessage ?? "Generating Trust Report..."}
+          </span>
+          <Skeleton width="55%" height="1.25rem" />
+          <Skeleton width="92%" />
+          <Skeleton width="100%" />
+          <Skeleton width="84%" />
+          <Skeleton width="40%" height="1.25rem" />
+          <Skeleton width="76%" />
+        </Flex>
+      </CardContent>
+    </Card>
+  ) : output ? (
+    <div
+      className={styles.reportRegion}
+      aria-live="polite"
+      aria-busy={running || undefined}
+    >
+      <TrustReportRenderer
+        response={output}
+        isStreaming={running}
+        metadata={episodeMetadata}
+        onSeekTimestamp={activeVideoId ? handleSeekTimestamp : undefined}
+        onFatalError={onRenderError}
+      />
+    </div>
+  ) : (
+    <Card as="div">
+      <CardContent>
+        <div className={styles.emptyState}>
+          <span className={styles.emptyOutput}>No Trust Report yet.</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <Flex as="section" direction="column" gap={4} aria-label="Trust Report Runner">
-      <form onSubmit={handleSubmit} noValidate className={styles.form}>
-        <Input
-          label="Episode URL"
-          type="url"
-          required
-          disabled={isBlocked}
-          placeholder="https://www.youtube.com/watch?v=..."
-          hint="Paste a YouTube Episode link or 11-character video ID to generate a Trust Report."
-          value={episodeUrl}
-          onChange={(event) => onEpisodeUrlChange(event.target.value)}
-        />
+      <div className={styles.inputSection}>
+        <form onSubmit={handleSubmit} noValidate className={styles.form}>
+          <Input
+            label="Episode URL"
+            type="url"
+            required
+            disabled={isBlocked}
+            placeholder="https://www.youtube.com/watch?v=..."
+            hint="Paste a YouTube Episode link or 11-character video ID to generate a Trust Report."
+            value={episodeUrl}
+            onChange={(event) => onEpisodeUrlChange(event.target.value)}
+          />
 
-        <div className={styles.controls}>
-          <Button
-            type="submit"
-            variant="primary"
-            isLoading={running}
-            disabled={isBlocked || !episodeUrl.trim()}
-          >
-            {running ? "Generating..." : "Generate Report"}
-          </Button>
-
-          {running ? (
-            <Button type="button" variant="secondary" onClick={onCancel}>
-              Cancel
+          <div className={styles.controls}>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={running}
+              disabled={isBlocked || !episodeUrl.trim()}
+            >
+              {running ? "Generating..." : "Generate Report"}
             </Button>
-          ) : null}
-        </div>
-      </form>
 
-      <div className={styles.statusRow} role="status" aria-live="polite">
-        <span className={statusMessage ? styles.statusText : undefined}>
-          {statusMessage ?? idleStatus}
-        </span>
-        <div className={styles.statusMeta}>
-          {!running && generationDurationMs !== null ? (
-            <span className={styles.usageBadge}>
-              Time: {formatDuration(generationDurationMs)}
+            {running ? (
+              <Button type="button" variant="secondary" onClick={onCancel}>
+                Cancel
+              </Button>
+            ) : null}
+
+            <span className={styles.webSearchInline}>
+              {webSearchMode === "none" ? (
+                <>
+                  Web search: Off (
+                  <button
+                    type="button"
+                    className={styles.settingsLink}
+                    disabled={running}
+                    onClick={onOpenSettings}
+                  >
+                    enable in Settings
+                  </button>
+                  )
+                </>
+              ) : (
+                getWebSearchBadgeText(webSearchMode, webSearchCount, running)
+              )}
             </span>
-          ) : null}
-          {!running && tokenUsage ? (
-            <span className={styles.usageBadge}>
-              {formatTokenUsage(tokenUsage)}
-            </span>
-          ) : null}
-          <span className={styles.hintBadge}>
-            {getWebSearchBadgeText(webSearchMode, webSearchCount, running)}
+          </div>
+        </form>
+
+        <div className={styles.statusRow} role="status" aria-live="polite">
+          <span className={statusMessage ? styles.statusText : undefined}>
+            {statusMessage ?? idleStatus}
           </span>
+          <div className={styles.statusMeta}>
+            {!running && generationDurationMs !== null ? (
+              <span className={styles.usageBadge}>
+                Time: {formatDuration(generationDurationMs)}
+              </span>
+            ) : null}
+            {!running && tokenUsage ? (
+              <span className={styles.usageBadge}>
+                {formatTokenUsage(tokenUsage)}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {showSkeleton ? (
-        <Card as="div">
-          <CardContent>
-            <Flex
-              direction="column"
-              gap={3}
-              aria-busy="true"
-              aria-live="polite"
-            >
-              <span className="visually-hidden">
-                {statusMessage ?? "Generating Trust Report..."}
-              </span>
-              <Skeleton width="55%" height="1.25rem" />
-              <Skeleton width="92%" />
-              <Skeleton width="100%" />
-              <Skeleton width="84%" />
-              <Skeleton width="40%" height="1.25rem" />
-              <Skeleton width="76%" />
-            </Flex>
-          </CardContent>
-        </Card>
-      ) : output ? (
-        <div
-          className={styles.reportRegion}
-          aria-live="polite"
-          aria-busy={running || undefined}
-        >
-          <TrustReportRenderer
-            response={output}
-            isStreaming={running}
-            metadata={episodeMetadata}
-            onFatalError={onRenderError}
-          />
-        </div>
-      ) : (
-        <Card as="div">
-          <CardContent>
-            <div className={styles.emptyState}>
-              <span className={styles.emptyOutput}>No Trust Report yet.</span>
+      <div className={styles.canvas}>
+        {activeVideoId ? (
+          <div className={styles.workspace}>
+            <div className={styles.videoColumn}>
+              <YouTubePlayer
+                ref={playerRef}
+                videoId={activeVideoId}
+                title={episodeMetadata?.title}
+              />
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className={styles.reportColumn}>{reportContent}</div>
+          </div>
+        ) : (
+          reportContent
+        )}
+      </div>
     </Flex>
   );
 }
