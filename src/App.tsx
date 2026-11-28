@@ -8,6 +8,7 @@ import {
   type TokenUsage,
 } from "@/agent";
 import { AgentRunner } from "@/components/AgentRunner";
+import { ReportHistory } from "@/components/ReportHistory";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
 import { Alert, Button, Card, CardContent, Flex } from "@/components/ui";
 import { useNotifications } from "@/notifications";
@@ -21,6 +22,13 @@ import {
   resolveEffectiveCorsProxyUrl,
   saveAIGeneralSettings,
 } from "@/utils/aiGeneralSettings";
+import {
+  addReportHistoryEntry,
+  clearReportHistory,
+  deleteReportHistoryEntry,
+  loadReportHistory,
+  type SavedTrustReport,
+} from "@/utils/reportHistory";
 import {
   addConnection,
   type AIConnectionInput,
@@ -47,6 +55,12 @@ export function App() {
     () => loadAIGeneralSettings(),
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [history, setHistory] = useState<SavedTrustReport[]>(() =>
+    loadReportHistory(),
+  );
+  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [reportRenderKey, setReportRenderKey] = useState(0);
   const [episodeUrl, setEpisodeUrl] = useState("");
   const [running, setRunning] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -60,6 +74,11 @@ export function App() {
   >(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const renderErrorRef = useRef<string | null>(null);
+  const historyRef = useRef<SavedTrustReport[]>(history);
+
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   useEffect(() => {
     return () => {
@@ -69,9 +88,14 @@ export function App() {
 
   const activeConnection = getActiveConnection(settings);
   const effectiveProxy = resolveEffectiveCorsProxyUrl(generalSettings);
-  const webSearchMode = activeConnection
-    ? getConnectionWebSearchMode(activeConnection)
-    : "none";
+  const activeHistoryEntry = activeHistoryId
+    ? (history.find((item) => item.id === activeHistoryId) ?? null)
+    : null;
+  const displayedWebSearchMode = activeHistoryEntry
+    ? activeHistoryEntry.webSearchMode
+    : activeConnection
+      ? getConnectionWebSearchMode(activeConnection)
+      : "none";
   const activeVideoId =
     extractVideoId(episodeUrl) ?? episodeMetadata?.videoId ?? null;
 
@@ -114,7 +138,7 @@ export function App() {
     const target = settings.connections.find((conn) => conn.id === id);
     const nextSettings = deleteConnection(settings, id);
     commitSettings(nextSettings);
-    if (nextSettings.connections.length === 0) {
+    if (nextSettings.connections.length === 0 && !activeHistoryId) {
       setOutput("");
       setEpisodeMetadata(null);
       setTokenUsage(null);
@@ -127,6 +151,47 @@ export function App() {
         ? `AI Connection "${target.name}" deleted.`
         : "AI Connection deleted.",
     );
+  };
+
+  const handleLoadHistory = (entry: SavedTrustReport) => {
+    if (running) {
+      return;
+    }
+    setEpisodeUrl(entry.episodeUrl);
+    setOutput(entry.output);
+    setEpisodeMetadata(entry.metadata);
+    setTokenUsage(entry.usage);
+    setWebSearchCount(entry.webSearchCount);
+    setGenerationDurationMs(entry.durationMs);
+    setStatusMessage(null);
+    setActiveHistoryId(entry.id);
+    setReportRenderKey((prev) => prev + 1);
+    setIsHistoryOpen(false);
+  };
+
+  const handleDeleteHistory = (id: string) => {
+    if (running) {
+      return;
+    }
+    const nextHistory = deleteReportHistoryEntry(historyRef.current, id);
+    historyRef.current = nextHistory;
+    setHistory(nextHistory);
+    if (activeHistoryId === id) {
+      setActiveHistoryId(null);
+    }
+    notifyInfo("Trust Report removed from history.");
+  };
+
+  const handleClearHistory = () => {
+    if (running) {
+      return;
+    }
+    const nextHistory = clearReportHistory();
+    historyRef.current = nextHistory;
+    setHistory(nextHistory);
+    setActiveHistoryId(null);
+    setIsHistoryOpen(false);
+    notifyInfo("Trust Report history cleared.");
   };
 
   const handleCancel = () => {
@@ -171,7 +236,16 @@ export function App() {
     abortControllerRef.current = controller;
     renderErrorRef.current = null;
 
+    const connectionSnapshot = {
+      connectionName: activeConnection.name,
+      provider: activeConnection.provider,
+      modelId: activeConnection.modelId,
+    };
+
     setRunning(true);
+    setActiveHistoryId(null);
+    setIsHistoryOpen(false);
+    setReportRenderKey((prev) => prev + 1);
     setOutput("");
     setEpisodeMetadata(null);
     setTokenUsage(null);
@@ -218,6 +292,29 @@ export function App() {
       setWebSearchCount(report.webSearchCount);
       setGenerationDurationMs(report.durationMs);
       const uiValidation = validateTrustReportOutput(report.text);
+      if (uiValidation.hasRoot) {
+        const savedResult = addReportHistoryEntry(historyRef.current, {
+          episodeUrl: episodeUrl.trim(),
+          metadata: report.metadata,
+          output: report.text,
+          connectionName: connectionSnapshot.connectionName,
+          provider: connectionSnapshot.provider,
+          modelId: connectionSnapshot.modelId,
+          webSearchMode: report.webSearchMode,
+          webSearchCount: report.webSearchCount,
+          durationMs: report.durationMs,
+          usage: report.usage,
+        });
+        historyRef.current = savedResult.entries;
+        setHistory(savedResult.entries);
+        setActiveHistoryId(savedResult.entry.id);
+        if (savedResult.prunedCount > 0) {
+          notifyInfo(
+            `Removed ${savedResult.prunedCount} older saved ${savedResult.prunedCount === 1 ? "report" : "reports"} to stay within browser storage limits.`,
+          );
+        }
+      }
+
       if (!uiValidation.hasRoot) {
         notifyError(
           uiValidation.errorMessage ??
@@ -288,6 +385,17 @@ export function App() {
         </header>
 
         <div className={styles.content}>
+          <ReportHistory
+            entries={history}
+            activeReportId={activeHistoryId}
+            open={isHistoryOpen}
+            disabled={running}
+            onOpenChange={setIsHistoryOpen}
+            onLoad={handleLoadHistory}
+            onDelete={handleDeleteHistory}
+            onClearAll={handleClearHistory}
+          />
+
           {!effectiveProxy.url ? (
             <Alert variant="warning">
               <div className={styles.proxyAlertBody}>
@@ -335,7 +443,7 @@ export function App() {
             </Alert>
           ) : null}
 
-          {activeConnection ? (
+          {activeConnection || output ? (
             <AgentRunner
               episodeUrl={episodeUrl}
               onEpisodeUrlChange={setEpisodeUrl}
@@ -343,12 +451,14 @@ export function App() {
               running={running}
               statusMessage={statusMessage}
               output={output}
+              reportKey={reportRenderKey}
               episodeMetadata={episodeMetadata}
               tokenUsage={tokenUsage}
-              webSearchMode={webSearchMode}
+              webSearchMode={displayedWebSearchMode}
               webSearchCount={webSearchCount}
               generationDurationMs={generationDurationMs}
               missingProxyInProd={!effectiveProxy.url}
+              missingConnection={!activeConnection}
               onRun={handleRun}
               onCancel={handleCancel}
               onOpenSettings={() => setIsSettingsOpen(true)}

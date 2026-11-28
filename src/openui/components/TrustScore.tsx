@@ -1,49 +1,40 @@
 import { defineComponent } from "@openuidev/react-lang";
 import { z } from "zod";
-import {
-  Badge,
-  type BadgeTone,
-  Card,
-  CardContent,
-  CardHeader,
-  Meter,
-  type MeterTone,
-} from "@/components/ui";
+import { Badge, Card, CardContent, CardHeader, Meter } from "@/components/ui";
 import { parseScoreValue } from "../utils";
 import sharedStyles from "./ReportPrimitives.module.css";
+import { getScoreTone, SideScoreOUID } from "./SideScore";
 import styles from "./TrustScore.module.css";
-
-function getScoreTone(score: number): {
-  badgeTone: BadgeTone;
-  meterTone: MeterTone;
-} {
-  if (score >= 75) {
-    return { badgeTone: "success", meterTone: "success" };
-  }
-  if (score >= 45) {
-    return { badgeTone: "warning", meterTone: "warning" };
-  }
-  return { badgeTone: "danger", meterTone: "danger" };
-}
 
 export const TrustScoreOUID = defineComponent({
   name: "TrustScore",
   description:
-    "Displays the overall Trustworthiness Score (0-100), rating label, and brief rationale.",
+    "Displays the overall Episode Trustworthiness Score (0-100), rating label, rationale, and optional separate Host and Guest SideScore items.",
   props: z.object({
     score: z
       .union([z.number(), z.string()])
-      .describe("Trustworthiness Score from 0 to 100"),
+      .describe("Overall Episode Trustworthiness Score from 0 to 100"),
     label: z
       .string()
       .describe('Rating label such as "High", "Moderate", "Mixed", or "Low"'),
     rationale: z
       .string()
-      .describe("1-2 sentence rationale explaining the Trustworthiness Score"),
+      .describe(
+        "1-2 sentence rationale explaining the overall Episode Trustworthiness Score and any Host/Guest divergence",
+      ),
+    sideScores: z
+      .array(SideScoreOUID.ref)
+      .optional()
+      .describe(
+        "Optional list of SideScore components assessing Host and Guest separately",
+      ),
   }),
-  component: ({ props }) => {
+  component: ({ props, renderNode }) => {
     const clampedScore = parseScoreValue(props.score);
     const { badgeTone, meterTone } = getScoreTone(clampedScore);
+    const sideScoreNodes = Array.isArray(props.sideScores)
+      ? props.sideScores.filter(Boolean)
+      : [];
 
     return (
       <Card>
@@ -59,7 +50,7 @@ export const TrustScoreOUID = defineComponent({
             </div>
           </div>
           <Meter
-            label="Overall Trustworthiness"
+            label="Overall Episode Trustworthiness"
             value={clampedScore}
             valueText={`${clampedScore}/100`}
             tone={meterTone}
@@ -68,6 +59,10 @@ export const TrustScoreOUID = defineComponent({
           <p className={`${sharedStyles.bodyText} ${styles.rationale}`}>
             {props.rationale ?? ""}
           </p>
+
+          {sideScoreNodes.length > 0 ? (
+            <div className={styles.sideGrid}>{renderNode(props.sideScores)}</div>
+          ) : null}
         </CardContent>
       </Card>
     );

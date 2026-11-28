@@ -1,10 +1,41 @@
 @layer components {
-  .guestBio {
+  .sideSections {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .sideSection {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+
+    & + .sideSection {
+      padding-block-start: var(--space-5);
+      border-block-start: 1px solid var(--color-border-subtle);
+    }
+  }
+
+  .sideHeader {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .sideHeading {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+    margin: 0;
+  }
+
+  .bioBox {
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
     padding: var(--space-3);
-    margin-block-end: var(--space-4);
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border-subtle);
     background-color: var(--color-surface-subtle);

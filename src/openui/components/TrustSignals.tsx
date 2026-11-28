@@ -8,42 +8,109 @@ import styles from "./TrustSignals.module.css";
 export const TrustSignalsOUID = defineComponent({
   name: "TrustSignals",
   description:
-    "Displays a brief Guest background summary (optional) and evidence-backed Guest and Host Trustworthiness signals.",
+    "Displays evidence-backed Host / Podcast and Guest Trustworthiness signals grouped into separate subsections, each with an optional short bio.",
   props: z.object({
-    signals: z
+    hostSignals: z
       .array(SignalItemOUID.ref)
-      .describe("List of SignalItem components"),
+      .describe("List of Host / Podcast SignalItem components"),
+    hostBio: z
+      .string()
+      .optional()
+      .describe(
+        "Optional 1-2 sentence neutral context explaining who the Host / Podcast is and their editorial background",
+      ),
+    guestSignals: z
+      .array(SignalItemOUID.ref)
+      .optional()
+      .describe(
+        "Optional list of Guest SignalItem components (omit on solo-Host episodes)",
+      ),
     guestBio: z
       .string()
       .optional()
       .describe(
-        "Optional 1-2 sentence introduction explaining who the Guest is, their role, and relevance to the topic",
+        "Optional 1-2 sentence neutral introduction explaining who the Guest is, their role, and relevance to the topic",
       ),
   }),
   component: ({ props, renderNode }) => {
-    const count = Array.isArray(props.signals)
-      ? props.signals.filter(Boolean).length
-      : 0;
+    const hostSignalNodes = Array.isArray(props.hostSignals)
+      ? props.hostSignals.filter(Boolean)
+      : [];
+    const guestSignalNodes = Array.isArray(props.guestSignals)
+      ? props.guestSignals.filter(Boolean)
+      : [];
+
+    const hostBio =
+      typeof props.hostBio === "string" ? props.hostBio.trim() : "";
     const guestBio =
       typeof props.guestBio === "string" ? props.guestBio.trim() : "";
+
+    const totalCount = hostSignalNodes.length + guestSignalNodes.length;
+    const showHostSection = Boolean(hostBio) || hostSignalNodes.length > 0;
+    const showGuestSection = Boolean(guestBio) || guestSignalNodes.length > 0;
 
     return (
       <Card>
         <CardHeader>
-          <h2 className={sharedStyles.sectionHeading}>Guest Trustworthiness</h2>
-          <Badge mono>{count}</Badge>
+          <h2 className={sharedStyles.sectionHeading}>
+            Trustworthiness Signals
+          </h2>
+          <Badge mono>{totalCount}</Badge>
         </CardHeader>
         <CardContent>
-          {guestBio ? (
-            <div className={styles.guestBio}>
-              <span className={styles.bioLabel}>About the Guest</span>
-              <p className={sharedStyles.bodyText}>{guestBio}</p>
-            </div>
-          ) : null}
+          <div className={styles.sideSections}>
+            {showHostSection ? (
+              <section
+                className={styles.sideSection}
+                aria-label="Host and Podcast signals"
+              >
+                <div className={styles.sideHeader}>
+                  <h3 className={styles.sideHeading}>Host / Podcast</h3>
+                  <Badge mono>{hostSignalNodes.length}</Badge>
+                </div>
 
-          <Flex direction="column" gap={3}>
-            {renderNode(props.signals)}
-          </Flex>
+                {hostBio ? (
+                  <div className={styles.bioBox}>
+                    <span className={styles.bioLabel}>
+                      About the Host / Podcast
+                    </span>
+                    <p className={sharedStyles.bodyText}>{hostBio}</p>
+                  </div>
+                ) : null}
+
+                {hostSignalNodes.length > 0 ? (
+                  <Flex direction="column" gap={3}>
+                    {renderNode(props.hostSignals)}
+                  </Flex>
+                ) : null}
+              </section>
+            ) : null}
+
+            {showGuestSection ? (
+              <section
+                className={styles.sideSection}
+                aria-label="Guest signals"
+              >
+                <div className={styles.sideHeader}>
+                  <h3 className={styles.sideHeading}>Guest</h3>
+                  <Badge mono>{guestSignalNodes.length}</Badge>
+                </div>
+
+                {guestBio ? (
+                  <div className={styles.bioBox}>
+                    <span className={styles.bioLabel}>About the Guest</span>
+                    <p className={sharedStyles.bodyText}>{guestBio}</p>
+                  </div>
+                ) : null}
+
+                {guestSignalNodes.length > 0 ? (
+                  <Flex direction="column" gap={3}>
+                    {renderNode(props.guestSignals)}
+                  </Flex>
+                ) : null}
+              </section>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
     );

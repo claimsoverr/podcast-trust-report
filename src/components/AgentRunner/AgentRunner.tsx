@@ -13,6 +13,7 @@ import {
   type YouTubePlayerHandle,
 } from "@/components/YouTubePlayer";
 import { TrustReportRenderer } from "@/openui";
+import { formatDuration, formatTokenUsage } from "@/utils/format";
 import styles from "./AgentRunner.module.css";
 
 interface AgentRunnerProps {
@@ -22,12 +23,14 @@ interface AgentRunnerProps {
   running: boolean;
   statusMessage: string | null;
   output: string;
+  reportKey?: string | number;
   episodeMetadata: EpisodeMetadata | null;
   tokenUsage: TokenUsage | null;
   webSearchMode: WebSearchMode;
   webSearchCount: number | null;
   generationDurationMs: number | null;
   missingProxyInProd: boolean;
+  missingConnection?: boolean;
   onRun: () => void;
   onCancel: () => void;
   onOpenSettings: () => void;
@@ -57,31 +60,6 @@ function getWebSearchBadgeText(
   }
 }
 
-const numberFormatter = new Intl.NumberFormat();
-
-function formatTokenUsage(usage: TokenUsage): string {
-  const total = numberFormatter.format(usage.totalTokens);
-  const input = numberFormatter.format(usage.inputTokens);
-  const output = numberFormatter.format(usage.outputTokens);
-  const repairSuffix =
-    usage.repaired && usage.repairTokens > 0
-      ? ` · incl. ${numberFormatter.format(usage.repairTokens)} repair`
-      : "";
-
-  return `Tokens: ${total} (${input} in · ${output} out${repairSuffix})`;
-}
-
-function formatDuration(durationMs: number): string {
-  const totalSeconds = durationMs / 1000;
-  if (totalSeconds < 60) {
-    return `${totalSeconds.toFixed(1)}s`;
-  }
-  const wholeSeconds = Math.round(totalSeconds);
-  const minutes = Math.floor(wholeSeconds / 60);
-  const remainingSeconds = wholeSeconds % 60;
-  return `${minutes}m ${remainingSeconds}s`;
-}
-
 export function AgentRunner({
   episodeUrl,
   onEpisodeUrlChange,
@@ -89,12 +67,14 @@ export function AgentRunner({
   running,
   statusMessage,
   output,
+  reportKey,
   episodeMetadata,
   tokenUsage,
   webSearchMode,
   webSearchCount,
   generationDurationMs,
   missingProxyInProd,
+  missingConnection = false,
   onRun,
   onCancel,
   onOpenSettings,
@@ -102,7 +82,7 @@ export function AgentRunner({
 }: AgentRunnerProps) {
   const playerRef = useRef<YouTubePlayerHandle | null>(null);
   const showSkeleton = running && !output;
-  const isBlocked = running || missingProxyInProd;
+  const isBlocked = running || missingProxyInProd || missingConnection;
 
   const handleSeekTimestamp = useCallback((seconds: number) => {
     playerRef.current?.seekTo(seconds);
@@ -110,17 +90,19 @@ export function AgentRunner({
 
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (missingProxyInProd) {
+    if (missingProxyInProd || missingConnection) {
       return;
     }
     onRun();
   };
 
-  const idleStatus = missingProxyInProd
-    ? "Configure a CORS proxy or run locally to generate Trust Reports."
-    : output
-      ? null
-      : "Enter an Episode URL to generate a Trust Report.";
+  const idleStatus = missingConnection
+    ? "Add an AI Connection in Settings to generate new Trust Reports."
+    : missingProxyInProd
+      ? "Configure a CORS proxy or run locally to generate Trust Reports."
+      : output
+        ? null
+        : "Enter an Episode URL to generate a Trust Report.";
 
   const reportContent = showSkeleton ? (
     <Card as="div">
@@ -150,6 +132,7 @@ export function AgentRunner({
       aria-busy={running || undefined}
     >
       <TrustReportRenderer
+        key={reportKey}
         response={output}
         isStreaming={running}
         metadata={episodeMetadata}

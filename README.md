@@ -2,6 +2,21 @@
 
 A privacy-first tool that turns any YouTube podcast link into an interactive trustworthiness report.
 
+## Getting Started
+
+Running the project locally is currently the recommended way to use the app—the Vite dev server includes a built-in CORS proxy for fetching YouTube Episode metadata and Transcripts with no extra setup.
+
+Requires Node.js and npm:
+
+```sh
+git clone https://github.com/claimsoverr/podcast-trust-report.git
+cd podcast-trust-report
+npm install
+npm run dev
+```
+
+Open the local URL printed in your terminal (for example, `http://localhost:5173/podcast-trust-report/`), then open **Settings** to add an **AI Connection**.
+
 ## How It Works
 
 1. **Configure your AI** — Create one or more **AI Connections** in Settings using a local model (such as LM Studio Bionic or Ollama) or a cloud API key (Google Gemini, Claude, OpenAI).
@@ -12,8 +27,8 @@ A privacy-first tool that turns any YouTube podcast link into an interactive tru
 
 - **Summary** — Concise overview of the episode.
 - **Chapters** — Timestamped breakdown of topics.
-- **Fact-Checked Claims** — Key claims evaluated for accuracy.
-- **Guest Trustworthiness** — Credibility signals and reasons to trust (or question) the guest and host, alongside an overall trustworthiness score.
+- **Fact-Checked Claims** — Key claims attributed by speaker (Host or Guest) and evaluated for accuracy.
+- **Host & Guest Trustworthiness** — Separate trustworthiness scores, context, and evidence-backed signals for the Host / Podcast and the Guest(s), alongside an overall Episode trustworthiness score.
 
 ## Privacy
 

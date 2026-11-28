@@ -26,6 +26,33 @@ export const CLAIM_VERDICTS = [
 
 export type ClaimVerdict = (typeof CLAIM_VERDICTS)[number];
 
+export const CLAIM_SPEAKER_ROLES = ["Host", "Guest"] as const;
+export type ClaimSpeakerRole = (typeof CLAIM_SPEAKER_ROLES)[number];
+
+export function normalizeSpeakerRole(
+  raw: string | undefined,
+): ClaimSpeakerRole | null {
+  const normalized = (raw ?? "").trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  if (
+    normalized.includes("host") ||
+    normalized.includes("podcast") ||
+    normalized.includes("interviewer")
+  ) {
+    return "Host";
+  }
+  if (
+    normalized.includes("guest") ||
+    normalized.includes("panelist") ||
+    normalized.includes("interviewee")
+  ) {
+    return "Guest";
+  }
+  return null;
+}
+
 export function normalizeVerdict(raw: string | undefined): ClaimVerdict {
   const normalized = (raw ?? "").trim().toLowerCase();
   if (!normalized) {
@@ -98,6 +125,9 @@ const claimCardPropsSchema = z.object({
       'Verification verdict: "Supported", "Partially Supported", "Speculation", "Disputed", "Unsupported", "False / Misleading", "Unverifiable", or "Not Verified"',
     ),
   timestamp: z.string().describe("Episode timestamp such as 04:15"),
+  speaker: z
+    .string()
+    .describe('Speaker side making the Claim: "Host" or "Guest"'),
   claim: z.string().describe("Concise summary of the factual Claim"),
   reasoning: z
     .string()
@@ -111,16 +141,22 @@ const claimCardPropsSchema = z.object({
 type ClaimCardProps = z.infer<typeof claimCardPropsSchema>;
 
 function ClaimCardView(props: ClaimCardProps) {
-  const { activeVerdict } = useClaimFilter();
+  const { activeVerdict, activeSpeaker } = useClaimFilter();
   const metadata = useEpisodeMetadata();
   const onSeekTimestamp = useSeekTimestamp();
   const verdict = normalizeVerdict(props.verdict);
+  const speakerRole = normalizeSpeakerRole(props.speaker);
+  const rawSpeaker = typeof props.speaker === "string" ? props.speaker.trim() : "";
 
   if (activeVerdict !== null && activeVerdict !== verdict) {
     return null;
   }
+  if (activeSpeaker !== null && activeSpeaker !== speakerRole) {
+    return null;
+  }
 
   const badgeTone = getVerdictBadgeTone(verdict);
+  const speakerBadgeLabel = speakerRole ?? rawSpeaker;
   const seconds = parseTimestampToSeconds(props.timestamp);
   const safeTimestampUrl = buildYouTubeTimestampUrl(
     metadata?.videoId,
@@ -138,6 +174,9 @@ function ClaimCardView(props: ClaimCardProps) {
       <div className={styles.header}>
         <div className={styles.meta}>
           <Badge tone={badgeTone}>{verdict}</Badge>
+          {speakerBadgeLabel ? (
+            <Badge tone="neutral">{speakerBadgeLabel}</Badge>
+          ) : null}
           {props.timestamp ? (
             onSeekTimestamp && seconds !== null ? (
               <button
@@ -206,7 +245,7 @@ function ClaimCardView(props: ClaimCardProps) {
 export const ClaimCardOUID = defineComponent({
   name: "ClaimCard",
   description:
-    "A single fact-checked Claim with Verdict, timestamp, claim summary, reasoning, and optional sources. Wrap inside ClaimList.",
+    "A single fact-checked Claim with Verdict, timestamp, speaker role (Host or Guest), claim summary, reasoning, and optional sources. Wrap inside ClaimList.",
   props: claimCardPropsSchema,
   component: ({ props }) => <ClaimCardView {...props} />,
 });
