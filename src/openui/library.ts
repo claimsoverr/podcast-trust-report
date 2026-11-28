@@ -39,6 +39,7 @@ export const TRUST_REPORT_UI_PROMPT = trustReportLibrary.prompt({
     "NEVER place ClaimCard directly inside TrustReport; always wrap ClaimCard items inside ClaimList([...]).",
     "NEVER place SignalItem directly inside TrustReport; always wrap SignalItem items inside TrustSignals([...], guestBio?).",
     "Pass ClaimCard and SignalItem sourceUrls as an array of plain HTTPS/HTTP URL strings returned by web search, or omit it when web search is disabled.",
+    "Write all free-text content (overview, rationale, chapter titles, guestBio, signal details, claim summaries, reasoning, and Notice messages) in the primary language of the video, while keeping exact English enum values for TrustScore label, SignalItem polarity, and ClaimCard verdict.",
     "Never invent timestamps, quotes, or source URLs.",
   ],
   examples: [

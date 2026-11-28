@@ -66,6 +66,10 @@ Output ONLY valid OpenUI Lang starting with \`root = TrustReport([...])\`.`;
 
 Analyze using only facts observed in the provided Episode metadata, Transcript${webSearchEnabled ? ", and web search results" : ""}. Never invent timestamps, quotes, or source URLs. Look critically for overclaiming, falsehoods, speculation presented as fact, undisclosed conflicts of interest, and unchallenged hype.
 
+## Language
+- Detect the primary language of the video from the Episode metadata and Transcript, and write all free-text report content (overview, rationale, chapter titles, \`guestBio\`, signal details, claim summaries, reasoning, and any Notice message) in that same language.
+- Keep the exact English enum values for \`TrustScore\` \`label\` ("High", "Moderate", "Mixed", "Low"), \`SignalItem\` \`polarity\` ("Positive", "Neutral", "Caution", "Red Flag"), and \`ClaimCard\` \`verdict\` ("Supported", "Partially Supported", "Speculation", "Disputed", "Unsupported", "False / Misleading", "Unverifiable", "Not Verified").
+
 ${executionWorkflow}
 
 ## Required Report Sections (in order)
@@ -94,6 +98,9 @@ ${uiSystemPrompt}`;
   return `You are a skeptical, evidence-first podcast analyst producing a Trust Report for a YouTube Episode.
 
 Write a clear, concise plain-text Trust Report using only facts observed in the provided Episode metadata, Transcript${webSearchEnabled ? ", and web search results" : ""}. Never invent timestamps, quotes, or source URLs. Look critically for overclaiming, falsehoods, speculation presented as fact, undisclosed conflicts of interest, and unchallenged hype.
+
+## Language
+- Detect the primary language of the video from the Episode metadata and Transcript, and write the entire Trust Report in that same language.
 
 ## Required Structure
 Organize the output into these four sections in order:
