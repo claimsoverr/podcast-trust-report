@@ -669,21 +669,25 @@ async function fetchAnthropicModels(
   };
 }
 
-async function fetchOpenAIModels(
-  apiKey: string,
-  signal?: AbortSignal,
-): Promise<FetchModelsResult> {
+async function fetchBearerModels(options: {
+  apiKey: string;
+  modelsUrl: string;
+  providerLabel: string;
+  keyPortal: string;
+  signal?: AbortSignal;
+}): Promise<FetchModelsResult> {
+  const { apiKey, modelsUrl, providerLabel, keyPortal, signal } = options;
   const cleanApiKey = apiKey.trim();
   if (!cleanApiKey) {
     return {
       ok: false,
-      error: "OpenAI API Key is required.",
+      error: `${providerLabel} API Key is required.`,
     };
   }
 
   let response: Response;
   try {
-    response = await fetch("https://api.openai.com/v1/models", {
+    response = await fetch(modelsUrl, {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -697,8 +701,7 @@ async function fetchOpenAIModels(
     }
     return {
       ok: false,
-      error:
-        "Could not reach OpenAI API. Check your internet connection or browser CORS/network restrictions.",
+      error: `Could not reach ${providerLabel} API. Check your internet connection or browser CORS/network restrictions.`,
     };
   }
 
@@ -706,12 +709,12 @@ async function fetchOpenAIModels(
     if (response.status === 401 || response.status === 403) {
       return {
         ok: false,
-        error: `OpenAI rejected the API Key (${response.status}). Verify your key on OpenAI Platform.`,
+        error: `${providerLabel} rejected the API Key (${response.status}). Verify your key on ${keyPortal}.`,
       };
     }
     return {
       ok: false,
-      error: `OpenAI API responded with status ${response.status} (${response.statusText}).`,
+      error: `${providerLabel} API responded with status ${response.status} (${response.statusText}).`,
     };
   }
 
@@ -721,14 +724,14 @@ async function fetchOpenAIModels(
   } catch {
     return {
       ok: false,
-      error: "Invalid JSON response from OpenAI models endpoint.",
+      error: `Invalid JSON response from ${providerLabel} models endpoint.`,
     };
   }
 
   if (!Array.isArray(body.data)) {
     return {
       ok: false,
-      error: "Unexpected response format from OpenAI models endpoint.",
+      error: `Unexpected response format from ${providerLabel} models endpoint.`,
     };
   }
 
@@ -754,7 +757,21 @@ export async function fetchAvailableModels(
     case "anthropic":
       return fetchAnthropicModels(apiKey, signal);
     case "openai":
-      return fetchOpenAIModels(apiKey, signal);
+      return fetchBearerModels({
+        apiKey,
+        modelsUrl: "https://api.openai.com/v1/models",
+        providerLabel: "OpenAI",
+        keyPortal: "OpenAI Platform",
+        signal,
+      });
+    case "openrouter":
+      return fetchBearerModels({
+        apiKey,
+        modelsUrl: "https://openrouter.ai/api/v1/models",
+        providerLabel: "OpenRouter",
+        keyPortal: "OpenRouter",
+        signal,
+      });
   }
 }
 

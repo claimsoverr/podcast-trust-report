@@ -3,7 +3,8 @@ export type AIProvider =
   | "ollama"
   | "google"
   | "anthropic"
-  | "openai";
+  | "openai"
+  | "openrouter";
 
 export type WebSearchMode = "native" | "exa" | "none";
 

@@ -2,6 +2,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel, ToolSet } from "ai";
 import type { AgentModelConfig, AIProvider } from "./types";
 
@@ -96,6 +97,18 @@ export function createProviderModel(
         nativeWebSearchTool: {
           name: "web_search",
           tool: provider.tools.webSearch(),
+        },
+      };
+    }
+    case "openrouter": {
+      const provider = createOpenRouter({
+        apiKey,
+      });
+      return {
+        model: provider.chat(modelId),
+        nativeWebSearchTool: {
+          name: "web_search",
+          tool: provider.tools.webSearch({ engine: "auto" }),
         },
       };
     }

@@ -189,6 +189,38 @@ export const AI_PROVIDERS: Record<AIProvider, AIProviderConfig> = {
       "Note: API usage requires OpenAI Platform billing and is separate from ChatGPT Plus subscriptions.",
     ],
   },
+  openrouter: {
+    id: "openrouter",
+    label: "OpenRouter",
+    group: "cloud",
+    requiresUrl: false,
+    defaultUrl: "",
+    supportsApiKey: true,
+    requiresApiKey: true,
+    apiKeyPlaceholder: "sk-or-...",
+    namePlaceholder: "e.g. OpenRouter",
+    modelPlaceholder: "google/gemini-3.8-flash",
+    recommendedModels: [
+      { id: "openrouter/auto", label: "Auto" },
+      { id: "openrouter/free", label: "Auto Free" },
+      { id: "google/gemini-3.8-flash", label: "Balanced" },
+      { id: "anthropic/claude-sonnet-5-5", label: "Analytical" },
+      { id: "z-ai/glm-5.3-flash", label: "GLM 5.3 Flash" },
+      { id: "deepseek/deepseek-v4.1-flash-1017", label: "DeepSeek V4.1 Flash" },
+    ],
+    primaryLink: {
+      label: "Create an API key in OpenRouter",
+      url: "https://openrouter.ai/settings/keys",
+    },
+    summary:
+      "Access hundreds of cloud models through one unified API key with built-in web search. Requests go directly from your browser to OpenRouter.",
+    setupSteps: [
+      "Create an API key in OpenRouter Settings.",
+      "Paste the key below—no API URL is needed for OpenRouter.",
+      "Pick a recommended model chip or refresh to browse available models.",
+      "Note: Built-in web search uses your OpenRouter credits in addition to model token usage.",
+    ],
+  },
 };
 
 export const AI_PROVIDER_GROUPS: readonly SelectOptionGroup[] = [
@@ -219,6 +251,10 @@ export const AI_PROVIDER_GROUPS: readonly SelectOptionGroup[] = [
       {
         value: "openai",
         label: AI_PROVIDERS.openai.label,
+      },
+      {
+        value: "openrouter",
+        label: AI_PROVIDERS.openrouter.label,
       },
     ],
   },

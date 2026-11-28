@@ -24,6 +24,7 @@
     "@ai-sdk/google": "^4.0.128",
     "@ai-sdk/openai": "^4.0.125",
     "@ai-sdk/openai-compatible": "^3.0.77",
+    "@openrouter/ai-sdk-provider": "^3.1.0",
     "@openuidev/lang-core": "^1.2.0",
     "@openuidev/react-lang": "^1.2.0",
     "ai": "^7.0.150",

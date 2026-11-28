@@ -73,7 +73,7 @@ function SettingsDrawerContent({
 
     return (
       <div className={styles.sections}>
-        <details className={styles.section} open>
+        <details className={styles.section}>
           <summary className={styles.sectionSummary}>
             <span className={styles.sectionHeadingGroup}>
               <ChevronRight
